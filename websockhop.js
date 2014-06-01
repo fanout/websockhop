@@ -220,7 +220,7 @@
         if (!this._timer) {
             var delay = 0;
             if (this._tries > 0) {
-                var timeCap = 1 << Math.min(8, this._tries);
+                var timeCap = 1 << Math.min(8, (this._tries - 1));
                 delay = timeCap * 1000 + Math.floor(Math.random() * 1000);
                 debug.info("WebSockHop: Trying again in " + delay + "ms");
             }
