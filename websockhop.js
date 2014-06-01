@@ -220,7 +220,7 @@
         if (!this._timer) {
             var delay = 0;
             if (this._tries > 0) {
-                var timeCap = 1 << Math.min(8, (this._tries - 1));
+                var timeCap = 1 << Math.min(6, (this._tries - 1));
                 delay = timeCap * 1000 + Math.floor(Math.random() * 1000);
                 debug.info("WebSockHop: Trying again in " + delay + "ms");
             }
@@ -263,25 +263,22 @@
                 _this._tries = 0;
                 _this._raiseEvent("opened");
             };
-            socket.onerror = function(event) {
-                debug.log("WebSockHop: WebSocket::onerror");
-                if (_this._closing) {
-                    debug.log("WebSockHop: closed by close(), foregoing error event.");
-                } else {
-                    _this._raiseEvent("error");
-                }
-            };
             socket.onclose = function(event) {
                 debug.log("WebSockHop: WebSocket::onclose { wasClean: " + (event.wasClean ? "true" : "false") + ", code: " + event.code + " }");
+                var closing = _this._closing;
 
-                if (event.wasClean || _this._closing) {
+                if (event.wasClean) {
                     _this._raiseEvent("closed", function() {
                         _this._socket = null;
                     });
                 } else {
                     _this._raiseEvent("error", function() {
                         _this._socket = null;
-                        _this._attemptConnect();
+                        if (closing) {
+                            debug.log("WebSockHop: closed by close(), foregoing reconnect.");
+                        } else {
+                            _this._attemptConnect();
+                        }
                     });
                 }
             };
@@ -305,7 +302,6 @@
             } else if (this._timer) {
                 debug.log("WebSockHop: close() called on reconnecting WebSockHop, aborting reconnect.");
                 this._abortConnect();
-                this._raiseEvent("closed");
             }
         }
     };

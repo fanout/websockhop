@@ -85,6 +85,17 @@
                 ws = new WebSockHop("wss://echo.websocket.org/");
                 ws.on('opening', function() {
                     console.log('socket opening');
+                    // It's possible to do something asynchronous here
+                    // by calling this.async(). This makes the caller
+                    // wait for you to call next() before completing the event.
+                    // This demonstrates this feature by simulating an async
+                    // action with a 500 ms delay.
+                    var next = this.async();
+                    console.log('waiting 500 ms');
+                    setTimeout(function() {
+                        console.log('calling next()');
+                        next();
+                    }, 500);
                 });
 
                 ws.on('opened', function() {
@@ -102,6 +113,7 @@
 
                 ws.on('error', function() {
                     console.log('socket failed to connect or disconnected uncleanly');
+                    ws = null;
                     isConnected = false;
                     updateUi();
                 });
