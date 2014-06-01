@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>WebSockHop Echo Test</title>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css" />
+    <style>
+        section {
+            padding: 9px 14px;
+            margin-bottom: 14px;
+            border: 1px solid #e1e1e8;
+            border-radius: 4px;
+        }
+
+        #echo {
+            padding: 9px 34px;
+            border: 1px solid #e1e1e8;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>WebSockHop Echo Test</h1>
+
+    <section>
+        <div>
+            This demonstration uses WebSockHop against the sample WebSocket server described at
+            <a href="http://www.websocket.org/echo.html" target="_blank">http://www.websocket.org/echo.html</a>.
+        </div>
+    </section>
+
+    <section>
+        <h4>WebSockHop Status</h4>
+        <div id="status"></div>
+        <button id="switch" class="btn btn-default"></button>
+    </section>
+
+    <section>
+        <h4>
+            Once WebSockHop is connected, use this form to send a string to the server.
+        </h4>
+        <form id="testForm">
+            <div class="form-group">
+                <label for="toSend">Text to send</label>
+                <input type="text" id="toSend" class="form-control" />
+            </div>
+            <button id="sendButton" class="btn btn-primary">Send</button>
+        </form>
+
+        <h4>
+            Items sent to the server will be echoed below.
+        </h4>
+        <ul id="echo"></ul>
+    </section>
+
+</div>
+
+<script src="./websockhop.js"></script>
+
+<script>
+    (function() {
+
+        var escapeHTML = function (s) {
+            return s.replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+        };
+
+        var ws = null;
+        var isConnected = false;
+
+        var switchButton = document.querySelector("#switch");
+        switchButton.addEventListener("click", function() {
+
+            console.log("clicked " + switchButton.innerHTML);
+
+            if (!ws) {
+
+                ws = new WebSockHop("wss://echo.websocket.org/");
+                ws.on('opening', function() {
+                    console.log('socket opening');
+                });
+
+                ws.on('opened', function() {
+                    console.log('socket opened');
+                    isConnected = true;
+                    updateUi();
+                });
+
+                ws.on('closed', function() {
+                    console.log('socket closed cleanly');
+                    ws = null;
+                    isConnected = false;
+                    updateUi();
+                });
+
+                ws.on('error', function() {
+                    console.log('socket failed to connect or disconnected uncleanly');
+                    isConnected = false;
+                    updateUi();
+                });
+
+                ws.on('message', function(message) {
+                    console.log('adding message ' + message + ' to list');
+                    var echo = document.querySelector("#echo");
+                    var messageNode = document.createElement("li");
+                    messageNode.innerHTML = escapeHTML(message);
+                    echo.appendChild(messageNode);
+                });
+
+                updateUi();
+
+            } else {
+
+                ws.close();
+
+            }
+
+        });
+
+        var form = document.querySelector("#testForm");
+        form.addEventListener("submit", function(event) {
+
+            console.log("form submitted");
+
+            if (ws && isConnected) {
+                var toSend = document.querySelector("#toSend");
+                var valueToSend = toSend.value.trim();
+                if (valueToSend.length) {
+                    ws.send(toSend.value);
+                    toSend.value = "";
+                }
+            } else {
+                console.log("not connected, doing nothing.");
+            }
+
+            event.preventDefault();
+        });
+
+        var status = document.querySelector("#status");
+        var sendButton = document.querySelector("#sendButton");
+
+        var updateUi = function() {
+            if (!ws) {
+                status.innerHTML = "WebSockHop is not initialized.";
+                switchButton.innerHTML = "Connect";
+                sendButton.disabled = true;
+            } else if (!isConnected) {
+                status.innerHTML = "WebSockHop is initialized, but not connected.";
+                switchButton.innerHTML = "Abort connect";
+                sendButton.disabled = true;
+            } else {
+                status.innerHTML = "WebSockHop is initialized and connected.";
+                switchButton.innerHTML = "Disconnect";
+                sendButton.disabled = false;
+            }
+        };
+
+        updateUi();
+
+    })();
+</script>
+
+</body>
+</html>
