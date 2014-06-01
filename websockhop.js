@@ -125,13 +125,18 @@
             };
             if (this.loopBody) {
                 var asyncMode = false;
-                this._ctx.async = function() {
-                    delete _this._ctx.async;
-                    asyncMode = true;
-                    return next;
-                };
+                if (_this._ctx) {
+                    this._ctx.async = function() {
+                        delete _this._ctx.async;
+                        asyncMode = true;
+                        return next;
+                    };
+                }
                 var result = this.loopBody.apply(this._ctx);
                 if (!asyncMode) {
+                    if (_this._ctx) {
+                        delete _this._ctx.async;
+                    }
                     next(result !== undefined && !result);
                 }
             }
