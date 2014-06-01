@@ -1,0 +1,4 @@
+websockhop
+==========
+
+WebSocket convenience library
