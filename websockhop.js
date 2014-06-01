@@ -98,51 +98,50 @@
         return Object.prototype.toString.call(obj) == '[object Function]';
     };
 
-    var AsyncLoop = function(ctx) {
-        this.init = null;
-        this.check = null;
-        this.after = null;
+    var AsyncFor = function(init, check, after) {
+        this.init = init;
+        this.check = check;
+        this.after = after;
         this.loopBody = null;
-        this._ctx = ctx;
     };
-    AsyncLoop.prototype.runLoop = function(cb) {
+    AsyncFor.prototype.runLoop = function(callback) {
         if (this.init) {
             this.init();
         }
-        this._runMainLoop(false, cb);
+        this._runMainLoop(false, callback);
     };
-    AsyncLoop.prototype._runMainLoop = function(endLoop, cb) {
+    AsyncFor.prototype._runMainLoop = function(endLoop, callback) {
         var check = !endLoop && (this.check ? this.check() : true);
         if (check) {
             var _this = this;
-            var next = function(endLoop) {
-                if (!endLoop) {
+            var next = function(exit) {
+                if (!exit) {
                     if (_this.after) {
                         _this.after();
                     }
                 }
-                _this._runMainLoop(endLoop, cb);
+                _this._runMainLoop(exit, callback);
             };
             if (this.loopBody) {
                 var asyncMode = false;
-                if (_this._ctx) {
-                    this._ctx.async = function() {
-                        delete _this._ctx.async;
-                        asyncMode = true;
-                        return next;
-                    };
-                }
-                var result = this.loopBody.apply(this._ctx);
+                var async = function() {
+                    asyncMode = true;
+                    return next;
+                };
+                var result = this.loopBody(async);
                 if (!asyncMode) {
-                    if (_this._ctx) {
-                        delete _this._ctx.async;
-                    }
                     next(result !== undefined && !result);
                 }
             }
         } else {
-            cb();
+            if (callback) {
+                callback();
+            }
         }
+    };
+
+    var asyncfor = function(init, check, after) {
+        return new AsyncFor(init, check, after);
     };
 
     var Events = function (ctx) {
@@ -180,19 +179,18 @@
         //     handler.apply(ctx, args);
         // }
 
-        var loop = new AsyncLoop(ctx);
         var i;
-        loop.init = function() {
-            i = 0;
-        };
-        loop.check = function() {
-            return i < n;
-        };
-        loop.after = function() {
-            i = i + 1;
-        };
-        loop.loopBody = function() {
+        var loop = asyncfor(
+            function() { i = 0; },
+            function() { return i < n; },
+            function() { i = i + 1; }
+        );
+        loop.loopBody = function(async) {
             var handler = handlers[i];
+            ctx.async = function() {
+                delete ctx.async;
+                return async();
+            };
             handler.apply(ctx, args);
         };
         loop.runLoop(function() {
