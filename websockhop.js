@@ -11,7 +11,7 @@
         return variable && variable.document && variable.location && variable.alert && variable.setInterval;
     }
     if (!isWindow(window)) {
-        throw "The current version of FancyWebSocket may only be used within the context of a browser.";
+        throw "The current version of WebSockHop may only be used within the context of a browser.";
     }
     var debugMode = DEBUG && typeof(window.console) !== "undefined";
     if (typeof define === 'function' && define['amd']) {
