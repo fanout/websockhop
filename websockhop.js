@@ -254,38 +254,44 @@
             }
         });
     };
+    WebSockHop.prototype._raiseErrorEvent = function(willRetry) {
+        var _this = this;
+        this._raiseEvent("error", willRetry, function() {
+            _this._socket = null;
+            if (willRetry) {
+                _this._attemptConnect();
+            }
+        });
+    };
     WebSockHop.prototype._start = function() {
         var _this = this;
         this._raiseEvent("opening", function() {
-            var socket = _this._socket = new WebSocket(_this._url, _this._protocol);
-            socket.onopen = function(event) {
-                debug.log("WebSockHop: WebSocket::onopen");
-                _this._tries = 0;
-                _this._raiseEvent("opened");
-            };
-            socket.onclose = function(event) {
-                debug.log("WebSockHop: WebSocket::onclose { wasClean: " + (event.wasClean ? "true" : "false") + ", code: " + event.code + " }");
-                var closing = _this._closing;
+            if (_this._closing) {
+                // was aborted during "opening" event
+                _this._raiseErrorEvent(false);
+            } else {
+                var socket = _this._socket = new WebSocket(_this._url, _this._protocol);
+                socket.onopen = function(event) {
+                    debug.log("WebSockHop: WebSocket::onopen");
+                    _this._tries = 0;
+                    _this._raiseEvent("opened");
+                };
+                socket.onclose = function(event) {
+                    debug.log("WebSockHop: WebSocket::onclose { wasClean: " + (event.wasClean ? "true" : "false") + ", code: " + event.code + " }");
+                    var closing = _this._closing;
 
-                if (event.wasClean) {
-                    _this._raiseEvent("closed", function() {
-                        _this._socket = null;
-                    });
-                } else {
-                    var willRetry = !closing;
-                    _this._raiseEvent("error", willRetry, function() {
-                        _this._socket = null;
-                        if (closing) {
-                            debug.log("WebSockHop: closed by close(), foregoing reconnect.");
-                        } else {
-                            _this._attemptConnect();
-                        }
-                    });
+                    if (event.wasClean) {
+                        _this._raiseEvent("closed", function() {
+                            _this._socket = null;
+                        });
+                    } else {
+                        _this._raiseErrorEvent(!closing);
+                    }
+                };
+                socket.onmessage = function(event) {
+                    debug.log("WebSockHop: WebSocket::onmessage { data: " + event.data + " }");
+                    _this._raiseEvent("message", event.data);
                 }
-            };
-            socket.onmessage = function(event) {
-                debug.log("WebSockHop: WebSocket::onmessage { data: " + event.data + " }");
-                _this._raiseEvent("message", event.data);
             }
         });
     };

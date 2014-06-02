@@ -121,6 +121,7 @@
 
                 ws.on('error', function(willRetry) {
                     console.log('socket failed to connect or disconnected uncleanly');
+                    isWaitingToOpen = false;
                     isConnected = false;
 
                     if (willRetry) {
@@ -145,6 +146,8 @@
 
             } else {
 
+                console.log("calling ws.close()");
+                isWaitingToOpen = false;
                 ws.close();
 
             }
@@ -178,22 +181,18 @@
             if (isWaitingToOpen) {
                 status.innerHTML = "WebSockHop is waiting to open.";
                 switchButton.innerHTML = "Waiting to open...";
-                switchButton.disabled = true;
                 sendButton.disabled = true;
             } else if (!ws) {
                 status.innerHTML = "WebSockHop is not initialized.";
                 switchButton.innerHTML = "Connect";
-                switchButton.disabled = false;
                 sendButton.disabled = true;
             } else if (!isConnected) {
                 status.innerHTML = "WebSockHop is initialized, but not connected.";
                 switchButton.innerHTML = "Abort connect";
-                switchButton.disabled = false;
                 sendButton.disabled = true;
             } else {
                 status.innerHTML = "WebSockHop is initialized and connected.";
                 switchButton.innerHTML = "Disconnect";
-                switchButton.disabled = false;
                 sendButton.disabled = false;
             }
 
