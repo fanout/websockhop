@@ -272,7 +272,8 @@
                         _this._socket = null;
                     });
                 } else {
-                    _this._raiseEvent("error", function() {
+                    var willRetry = !closing;
+                    _this._raiseEvent("error", willRetry, function() {
                         _this._socket = null;
                         if (closing) {
                             debug.log("WebSockHop: closed by close(), foregoing reconnect.");

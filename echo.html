@@ -73,6 +73,7 @@
         };
 
         var ws = null;
+        var isWaitingToOpen = false;
         var isConnected = false;
 
         var switchButton = document.querySelector("#switch");
@@ -93,9 +94,16 @@
                     var next = this.async();
                     console.log('waiting 500 ms');
                     setTimeout(function() {
+                        isWaitingToOpen = false;
                         console.log('calling next()');
                         next();
+
+                        updateUi();
                     }, 500);
+
+                    isWaitingToOpen = true;
+
+                    updateUi();
                 });
 
                 ws.on('opened', function() {
@@ -111,10 +119,17 @@
                     updateUi();
                 });
 
-                ws.on('error', function() {
+                ws.on('error', function(willRetry) {
                     console.log('socket failed to connect or disconnected uncleanly');
-                    ws = null;
                     isConnected = false;
+
+                    if (willRetry) {
+                        console.log('(will retry)');
+                    } else {
+                        console.log('(will not be retrying)');
+                        ws = null;
+                    }
+
                     updateUi();
                 });
 
@@ -159,19 +174,29 @@
         var sendButton = document.querySelector("#sendButton");
 
         var updateUi = function() {
-            if (!ws) {
+
+            if (isWaitingToOpen) {
+                status.innerHTML = "WebSockHop is waiting to open.";
+                switchButton.innerHTML = "Waiting to open...";
+                switchButton.disabled = true;
+                sendButton.disabled = true;
+            } else if (!ws) {
                 status.innerHTML = "WebSockHop is not initialized.";
                 switchButton.innerHTML = "Connect";
+                switchButton.disabled = false;
                 sendButton.disabled = true;
             } else if (!isConnected) {
                 status.innerHTML = "WebSockHop is initialized, but not connected.";
                 switchButton.innerHTML = "Abort connect";
+                switchButton.disabled = false;
                 sendButton.disabled = true;
             } else {
                 status.innerHTML = "WebSockHop is initialized and connected.";
                 switchButton.innerHTML = "Disconnect";
+                switchButton.disabled = false;
                 sendButton.disabled = false;
             }
+
         };
 
         updateUi();
