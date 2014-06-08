@@ -212,6 +212,7 @@
         this._events = new Events(this);
         this._timer = null;
         this._tries = 0;
+        this._aborted = false;
         this._closing = false;
 
         this._attemptConnect();
@@ -237,6 +238,7 @@
             window.clearTimeout(this._timer);
             this._timer = null;
         }
+        this._aborted = true;
     };
     WebSockHop.prototype._raiseEvent = function(event, args, callback) {
         if (isFunction(args) && !callback) {
@@ -254,22 +256,10 @@
             }
         });
     };
-    WebSockHop.prototype._raiseErrorEvent = function(willRetry) {
-        var _this = this;
-        this._raiseEvent("error", willRetry, function() {
-            _this._socket = null;
-            if (willRetry) {
-                _this._attemptConnect();
-            }
-        });
-    };
     WebSockHop.prototype._start = function() {
         var _this = this;
         this._raiseEvent("opening", function() {
-            if (_this._closing) {
-                // was aborted during "opening" event
-                _this._raiseErrorEvent(false);
-            } else {
+            if (!_this._aborted) {
                 var socket = _this._socket = new WebSocket(_this._url, _this._protocol);
                 socket.onopen = function(event) {
                     debug.log("WebSockHop: WebSocket::onopen");
@@ -285,7 +275,12 @@
                             _this._socket = null;
                         });
                     } else {
-                        _this._raiseErrorEvent(!closing);
+                        _this._raiseEvent("error", !closing, function() {
+                            _this._socket = null;
+                            if (!closing) {
+                                _this._attemptConnect();
+                            }
+                        });
                     }
                 };
                 socket.onmessage = function(event) {
@@ -302,15 +297,23 @@
         }
     };
     WebSockHop.prototype.close = function() {
-        if (!this._closing) {
+        if (this._socket) {
             this._closing = true;
-            if (this._socket) {
-                this._socket.close();
-            } else if (this._timer) {
-                debug.log("WebSockHop: close() called on reconnecting WebSockHop, aborting reconnect.");
-                this._abortConnect();
-            }
+            this._socket.close();
+        } else {
+            debug.log("WebSockHop: close() called on non-live socket.  Did you mean to call abort() ?");
         }
+    };
+    WebSockHop.prototype.abort = function () {
+        if (this._socket) {
+            debug.log("WebSockHop: abort() called on live socket, performing forceful shutdown.  Did you mean to call close() ?");
+            this._socket.onclose = null;
+            this._socket.onmessage = null;
+            this._socket.onerror = null;
+            this._socket.close();
+            this._socket = null;
+        }
+        this._abortConnect();
     };
 
     WebSockHop.prototype.on = function (type, handler) {

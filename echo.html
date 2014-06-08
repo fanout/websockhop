@@ -73,93 +73,111 @@
         };
 
         var ws = null;
-        var isWaitingToOpen = false;
-        var isConnected = false;
+
+        var STATE_NO_SOCKET = 0;
+        var STATE_WAITING_TO_OPEN = 1;
+        var STATE_WAITING_TO_CONNECT = 2;
+        var STATE_CONNECTED = 3;
+        var STATE_WAITING_TO_RETRY = 4;
+
+        var state = STATE_NO_SOCKET;
 
         var switchButton = document.querySelector("#switch");
         switchButton.addEventListener("click", function() {
 
             console.log("clicked " + switchButton.innerHTML);
 
-            if (!ws) {
-
+            switch(state) {
+            case STATE_NO_SOCKET:
                 ws = new WebSockHop("wss://echo.websocket.org/");
                 ws.on('opening', function() {
-                    console.log('socket opening');
+                    console.log('echo: socket opening');
                     // It's possible to do something asynchronous here
                     // by calling this.async(). This makes the caller
                     // wait for you to call next() before completing the event.
                     // This demonstrates this feature by simulating an async
-                    // action with a 500 ms delay.
+                    // action with a 1000 ms delay.
                     var next = this.async();
-                    console.log('waiting 500 ms');
+                    console.log('echo: waiting 1000 ms');
                     setTimeout(function() {
-                        isWaitingToOpen = false;
-                        console.log('calling next()');
+                        if (state == STATE_WAITING_TO_OPEN) {
+                            state = STATE_WAITING_TO_CONNECT;
+                            console.log('echo: finished waiting 1000 ms');
+                            updateUi();
+                        }
                         next();
+                    }, 1000);
 
-                        updateUi();
-                    }, 500);
-
-                    isWaitingToOpen = true;
+                    state = STATE_WAITING_TO_OPEN;
 
                     updateUi();
                 });
 
                 ws.on('opened', function() {
-                    console.log('socket opened');
-                    isConnected = true;
+                    console.log('echo: socket opened');
+                    state = STATE_CONNECTED;
                     updateUi();
                 });
 
                 ws.on('closed', function() {
-                    console.log('socket closed cleanly');
+                    console.log('echo: socket closed cleanly');
                     ws = null;
-                    isConnected = false;
+                    state = STATE_NO_SOCKET;
                     updateUi();
                 });
 
                 ws.on('error', function(willRetry) {
-                    console.log('socket failed to connect or disconnected uncleanly');
-                    isWaitingToOpen = false;
-                    isConnected = false;
+                    console.log('echo: socket failed to connect, or disconnected uncleanly');
 
                     if (willRetry) {
                         console.log('(will retry)');
+                        state = STATE_WAITING_TO_RETRY;
                     } else {
                         console.log('(will not be retrying)');
                         ws = null;
+                        state = STATE_NO_SOCKET;
                     }
 
                     updateUi();
                 });
 
                 ws.on('message', function(message) {
-                    console.log('adding message ' + message + ' to list');
+                    console.log('echo: adding message ' + message + ' to list');
                     var echo = document.querySelector("#echo");
                     var messageNode = document.createElement("li");
                     messageNode.innerHTML = escapeHTML(message);
                     echo.appendChild(messageNode);
                 });
+                break;
 
-                updateUi();
+            case STATE_WAITING_TO_OPEN:
+            case STATE_WAITING_TO_RETRY:
 
-            } else {
+                console.log("echo: calling ws.abort()");
+                ws.abort();
+                ws = null;
+                state = STATE_NO_SOCKET;
+                break;
 
-                console.log("calling ws.close()");
-                isWaitingToOpen = false;
+            case STATE_WAITING_TO_CONNECT:
+            case STATE_CONNECTED:
+
+                console.log("echo: calling ws.close()");
                 ws.close();
+                break;
 
             }
+
+            updateUi();
 
         });
 
         var form = document.querySelector("#testForm");
         form.addEventListener("submit", function(event) {
 
-            console.log("form submitted");
+            console.log("echo: form submitted");
 
-            if (ws && isConnected) {
+            if (state == STATE_CONNECTED) {
                 var toSend = document.querySelector("#toSend");
                 var valueToSend = toSend.value.trim();
                 if (valueToSend.length) {
@@ -167,7 +185,7 @@
                     toSend.value = "";
                 }
             } else {
-                console.log("not connected, doing nothing.");
+                console.log("echo: not connected, doing nothing.");
             }
 
             event.preventDefault();
@@ -178,22 +196,32 @@
 
         var updateUi = function() {
 
-            if (isWaitingToOpen) {
-                status.innerHTML = "WebSockHop is waiting to open.";
-                switchButton.innerHTML = "Waiting to open...";
-                sendButton.disabled = true;
-            } else if (!ws) {
+            switch(state) {
+            case STATE_NO_SOCKET:
                 status.innerHTML = "WebSockHop is not initialized.";
                 switchButton.innerHTML = "Connect";
                 sendButton.disabled = true;
-            } else if (!isConnected) {
-                status.innerHTML = "WebSockHop is initialized, but not connected.";
+                break;
+            case STATE_WAITING_TO_OPEN:
+                status.innerHTML = "WebSockHop is waiting to open.";
+                switchButton.innerHTML = "Cancel";
+                sendButton.disabled = true;
+                break;
+            case STATE_WAITING_TO_CONNECT:
+                status.innerHTML = "WebSockHop is initialized, now connecting ...";
                 switchButton.innerHTML = "Abort connect";
                 sendButton.disabled = true;
-            } else {
+                break;
+            case STATE_CONNECTED:
                 status.innerHTML = "WebSockHop is initialized and connected.";
                 switchButton.innerHTML = "Disconnect";
                 sendButton.disabled = false;
+                break;
+            case STATE_WAITING_TO_RETRY:
+                status.innerHTML = "WebSockHop is waiting to reconnect ...";
+                switchButton.innerHTML = "Abort reconnect";
+                sendButton.disabled = true;
+                break;
             }
 
         };
