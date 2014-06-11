@@ -98,6 +98,10 @@
         return Object.prototype.toString.call(obj) == '[object Function]';
     };
 
+    var isObject = function(obj) {
+        return obj === Object(obj);
+    };
+
     var AsyncFor = function(init, check, after) {
         this.init = init;
         this.check = check;
@@ -201,6 +205,39 @@
 
     };
 
+    var messageFormatter = {
+        _requestMap: {},
+        _nextId: 0,
+        toMessage: function(obj) {
+            return JSON.stringify(obj);
+        },
+        fromMessage: function(message) {
+            return JSON.parse(message);
+        },
+        trackRequest: function(requestObject, handler) {
+            requestObject.id = ++this._nextId;
+            this._requestMap[requestObject.id.toString()] = handler;
+            return requestObject;
+        },
+        getHandlerForResponse: function(responseObject) {
+            if (!("id" in responseObject)) {
+                return null;
+            }
+            var id = responseObject.id.toString();
+            if (!(id in this._requestMap)) {
+                return null;
+            }
+            var handler = this._requestMap[id];
+            delete this._requestMap[id];
+            return handler;
+        },
+        createPingRequest: function() {
+            return {
+                type: 'ping'
+            }
+        }
+    };
+
     var WebSockHop = function(url, protocol) {
         if (!(this instanceof WebSockHop)) {
             throw new window.Error("Constructor called as a function");
@@ -214,6 +251,7 @@
         this._tries = 0;
         this._aborted = false;
         this._closing = false;
+        this.messageFormatter = messageFormatter;
 
         this._attemptConnect();
     };
@@ -285,15 +323,16 @@
                 };
                 socket.onmessage = function(event) {
                     debug.log("WebSockHop: WebSocket::onmessage { data: " + event.data + " }");
-                    _this._raiseEvent("message", event.data);
+                    _this._dispatchMessage(event.data);
                 }
             }
         });
     };
 
-    WebSockHop.prototype.send = function(data) {
+    WebSockHop.prototype.send = function(obj) {
         if (this._socket) {
-            this._socket.send(data);
+            var message = this.messageFormatter.toMessage(obj);
+            this._socket.send(message);
         }
     };
     WebSockHop.prototype.close = function() {
@@ -324,7 +363,20 @@
             this._events.off(type, arguments[1]);
         } else {
             this._events.off(type);
-       }
+        }
+    };
+    WebSockHop.prototype.request = function (obj, callback) {
+        this.messageFormatter.trackRequest(obj, callback);
+        this.send(obj);
+    };
+    WebSockHop.prototype._dispatchMessage = function (message) {
+        var obj = this.messageFormatter.fromMessage(message);
+        var handler = isObject(obj) ? this.messageFormatter.getHandlerForResponse(obj) : null;
+        if (handler != null) {
+            handler(obj);
+        } else {
+            this._raiseEvent("message", obj);
+        }
     };
 
     return WebSockHop;
