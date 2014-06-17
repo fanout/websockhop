@@ -298,7 +298,7 @@
         var _this = this;
         this._raiseEvent("opening", function() {
             if (!_this._aborted) {
-                var socket = _this._socket = new WebSocket(_this._url, _this._protocol);
+                var socket = _this._socket = _this._protocol ? new WebSocket(_this._url, _this._protocol) : new WebSocket(_this._url);
                 socket.onopen = function(event) {
                     debug.log("WebSockHop: WebSocket::onopen");
                     _this._tries = 0;
