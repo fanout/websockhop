@@ -231,6 +231,15 @@
             delete this._requestMap[id];
             return handler;
         },
+        getPendingHandlerIds: function() {
+            var ids = [];
+            for(var key in this._requestMap) {
+                if (this._requestMap.hasOwnProperty(key)) {
+                    ids.push(key);
+                }
+            }
+            return ids;
+        },
         createPingRequest: function() {
             return {
                 type: 'ping'
@@ -349,6 +358,11 @@
         var _this = this;
         this._raiseEvent("error", !isClosing, function() {
             _this._socket = null;
+            var pendingRequestIds = _this.messageFormatter.getPendingHandlerIds();
+            for (var i = 0; i < pendingRequestIds.length; i++) {
+                var requestId = pendingRequestIds[i];
+                _this._dispatchErrorMessage(requestId, {type: ErrorEnumValue.Disconnect});
+            }
             if (!isClosing) {
                 _this._attemptConnect();
             }
@@ -428,20 +442,27 @@
         var requestDisconnectOnTimeout = disconnectOnTimeout || this.defaultDisconnectOnRequestTimeout;
 
         var requestTimeoutTimer = null;
-        this.messageFormatter.trackRequest(obj, function(o) {
-            if (requestTimeoutTimer != null) {
-                window.clearTimeout(requestTimeoutTimer);
-                requestTimeoutTimer = null;
+        this.messageFormatter.trackRequest(obj, {
+            callback: function (o) {
+                if (requestTimeoutTimer != null) {
+                    window.clearTimeout(requestTimeoutTimer);
+                    requestTimeoutTimer = null;
+                }
+                if (callback != null) {
+                    callback(o);
+                }
+            },
+            errorCallback: function (err) {
+                if (errorCallback != null) {
+                    errorCallback(err);
+                }
             }
-            callback(o);
         });
         this.send(obj);
         if (requestTimeoutMsecs > 0) {
             requestTimeoutTimer = setTimeout(function() {
                 debug.log("WebSockHop: timeout exceeded [" + obj.id + "]")
-                if (errorCallback != null) {
-                    errorCallback({type: ErrorEnumValue.Timeout});
-                }
+                this._dispatchErrorMessage(obj.id, {type: ErrorEnumValue.Timeout});
                 if (requestDisconnectOnTimeout) {
                     this._raiseErrorEvent(false);
                 }
@@ -452,9 +473,15 @@
         var obj = this.messageFormatter.fromMessage(message);
         var handler = isObject(obj) ? this.messageFormatter.getHandlerForResponse(obj) : null;
         if (handler != null) {
-            handler(obj);
+            handler.callback(obj);
         } else {
             this._raiseEvent("message", obj);
+        }
+    };
+    WebSockHop.prototype._dispatchErrorMessage = function (id, error) {
+        var handler = this.messageFormatter.getHandlerForResponse({id:id});
+        if (handler != null) {
+            handler.errorCallback(error);
         }
     };
 
