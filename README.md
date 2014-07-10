@@ -1,6 +1,5 @@
 WebSockHop
 ==========
-Date: July 9th, 2014  
 Author: Katsuyuki Ohmuro <harmony7@pex2.jp>  
 Mailing List: http://lists.fanout.io/listinfo.cgi/fanout-users-fanout.io
 
