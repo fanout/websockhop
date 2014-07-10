@@ -127,7 +127,9 @@
             switch(state) {
             case STATE_NO_SOCKET:
                 ws = new WebSockHop("wss://echo.websocket.org/");
+                ws.useAutomaticPing = true;
                 ws.pingIntervalMsecs = 60000; // Change this to experiment with ping interval
+                ws.pingResponseTimeoutMsecs = 10000; // Change this to experiment with ping response timeout
                 ws.on('opening', function() {
                     console.log('echo: socket opening');
                     // It's possible to do something asynchronous here

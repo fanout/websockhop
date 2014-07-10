@@ -238,6 +238,12 @@
         }
     };
 
+    var ErrorEnumValue = {
+        "None": 0,
+        "Disconnect": 1,
+        "Timeout": 2
+    };
+
     var WebSockHop = function(url, protocol) {
         if (!(this instanceof WebSockHop)) {
             throw new window.Error("Constructor called as a function");
@@ -253,10 +259,14 @@
         this._closing = false;
         this.messageFormatter = messageFormatter;
 
+        this.useAutomaticPing = false; // If set to true, system will automatically send "ping" periodically
+
         this._pingTimer = null;
         this.pingIntervalMsecs = 60000; // 60 seconds default ping timeout
-        this._pingResponseTimer = null;
         this.pingResponseTimeoutMsecs = 10000; // 10 seconds default ping response timeout
+
+        this.defaultRequestTimeoutMsecs = null; // Unless specified, request() calls use this value for timeout
+        this.defaultDisconnectOnRequestTimeout = false; // If specified, request "timeout" events will handle as though socket was dropped
 
         this._attemptConnect();
     };
@@ -308,7 +318,9 @@
                     debug.log("WebSockHop: WebSocket::onopen");
                     _this._tries = 0;
                     _this._raiseEvent("opened");
-                    _this.resetPingTimer();
+                    if (_this.useAutomaticPing) {
+                        _this._resetPingTimer();
+                    }
                 };
                 socket.onclose = function(event) {
                     debug.log("WebSockHop: WebSocket::onclose { wasClean: " + (event.wasClean ? "true" : "false") + ", code: " + event.code + " }");
@@ -326,7 +338,9 @@
                 socket.onmessage = function(event) {
                     debug.log("WebSockHop: WebSocket::onmessage { data: " + event.data + " }");
                     _this._dispatchMessage(event.data);
-                    _this.resetPingTimer();
+                    if (_this.useAutomaticPing) {
+                        _this._resetPingTimer();
+                    }
                 };
             }
         });
@@ -347,32 +361,29 @@
             window.clearTimeout(this._pingTimer);
             this._pingTimer = null;
         }
-        if (this._pingResponseTimer) {
-            window.clearTimeout(this._pingResponseTimer);
-            this._pingResponseTimer = null;
-        }
     };
 
-    WebSockHop.prototype.resetPingTimer = function() {
+    WebSockHop.prototype._resetPingTimer = function() {
         debug.log("WebSockHop: resetting ping.");
         this._clearPingTimers();
         var _this = this;
         this._pingTimer = setTimeout(function() {
-            var pingRequest = this.messageFormatter.createPingRequest();
-
-            this.request(pingRequest, function(obj) {
-                debug.log("WebSockHop: < PONG [" + obj.id + "]");
-            });
-            this._pingResponseTimer = setTimeout(function() {
-                this._noPingResponse();
-            }, this.pingResponseTimeoutMsecs, this);
-            debug.log("WebSockHop: > PING [" + pingRequest.id + "], requiring response in " + this.pingResponseTimeoutMsecs + " ms");
+            this.sendPingRequest();
         }, this.pingIntervalMsecs, this);
         debug.log("WebSockHop: ping in " + this.pingIntervalMsecs + " ms");
     };
-    WebSockHop.prototype._noPingResponse = function() {
-        debug.log("WebSockHop: no ping response, handling as disconnected");
-        this._raiseErrorEvent(false);
+    WebSockHop.prototype.sendPingRequest = function() {
+        var pingRequest = this.messageFormatter.createPingRequest();
+
+        this.request(pingRequest, function(obj) {
+            debug.log("WebSockHop: < PONG [" + obj.id + "]");
+        }, function(error) {
+            if (error.type == ErrorEnumValue.Timeout) {
+                debug.log("WebSockHop: no ping response, handling as disconnected");
+            }
+        }, this.pingResponseTimeoutMsecs, true);
+
+        debug.log("WebSockHop: > PING [" + pingRequest.id + "], requiring response in " + this.pingResponseTimeoutMsecs + " ms");
     };
 
     WebSockHop.prototype.send = function(obj) {
@@ -412,9 +423,30 @@
             this._events.off(type);
         }
     };
-    WebSockHop.prototype.request = function (obj, callback) {
-        this.messageFormatter.trackRequest(obj, callback);
+    WebSockHop.prototype.request = function (obj, callback, errorCallback, timeoutMsecs, disconnectOnTimeout) {
+        var requestTimeoutMsecs = timeoutMsecs || this.defaultRequestTimeoutMsecs;
+        var requestDisconnectOnTimeout = disconnectOnTimeout || this.defaultDisconnectOnRequestTimeout;
+
+        var requestTimeoutTimer = null;
+        this.messageFormatter.trackRequest(obj, function(o) {
+            if (requestTimeoutTimer != null) {
+                window.clearTimeout(requestTimeoutTimer);
+                requestTimeoutTimer = null;
+            }
+            callback(o);
+        });
         this.send(obj);
+        if (requestTimeoutMsecs > 0) {
+            requestTimeoutTimer = setTimeout(function() {
+                debug.log("WebSockHop: timeout exceeded [" + obj.id + "]")
+                if (errorCallback != null) {
+                    errorCallback({type: ErrorEnumValue.Timeout});
+                }
+                if (requestDisconnectOnTimeout) {
+                    this._raiseErrorEvent(false);
+                }
+            }, requestTimeoutMsecs, this);
+        }
     };
     WebSockHop.prototype._dispatchMessage = function (message) {
         var obj = this.messageFormatter.fromMessage(message);
@@ -425,6 +457,8 @@
             this._raiseEvent("message", obj);
         }
     };
+
+    WebSockHop.ErrorEnumValue = ErrorEnumValue;
 
     return WebSockHop;
 });
