@@ -268,6 +268,8 @@
         this._closing = false;
         this.messageFormatter = messageFormatter;
 
+        this.connectionTimeoutMsecs = 10000; // 10 seconds default connection timeout
+
         this.useAutomaticPing = false; // If set to true, system will automatically send "ping" periodically
 
         this._pingTimer = null;
@@ -323,8 +325,24 @@
         this._raiseEvent("opening", function() {
             if (!_this._aborted) {
                 var socket = _this._socket = _this._protocol ? new WebSocket(_this._url, _this._protocol) : new WebSocket(_this._url);
+                var connectionTimeout = null;
+                if (_this.connectionTimeoutMsecs) {
+                    connectionTimeout = setTimeout(function() {
+                        debug.log("WebSockHop: Connection timeout exceeded.");
+                        _this._raiseErrorEvent(false);
+                    }, _this.connectionTimeoutMsecs);
+                    debug.log("WebSockHop: Setting connection timeout (" + _this.connectionTimeoutMsecs + " msecs).");
+                }
+                var clearConnectionTimeout = function() {
+                    if (connectionTimeout != null) {
+                        debug.log("WebSockHop: Clearing connection timeout.");
+                        window.clearTimeout(connectionTimeout);
+                        connectionTimeout = null;
+                    }
+                };
                 socket.onopen = function(event) {
                     debug.log("WebSockHop: WebSocket::onopen");
+                    clearConnectionTimeout();
                     _this._tries = 0;
                     _this._raiseEvent("opened");
                     if (_this.useAutomaticPing) {
@@ -333,6 +351,7 @@
                 };
                 socket.onclose = function(event) {
                     debug.log("WebSockHop: WebSocket::onclose { wasClean: " + (event.wasClean ? "true" : "false") + ", code: " + event.code + " }");
+                    clearConnectionTimeout();
                     var closing = _this._closing;
 
                     if (event.wasClean) {
