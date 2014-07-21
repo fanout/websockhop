@@ -57,7 +57,10 @@ wsh.on('closed', function() {
 });
 ```
 
-WebSockHop tries to keep the connection open until the application explicitly closes it. If the underlying WebSocket fails to connect to the server, or if an existing connection is unexpectedly disconnected, then WebSockHop will automatically attempt to reconnect. Anytime the connection is successfully established or reestablished, the "opened" event will be triggered. The above code will only finish once the entire transaction of connect->send->receive->close has executed successfully.
+WebSockHop tries to keep the underlying WebSocket connection open until the application explicitly closes it. If there is a failure connecting to the server, or if an existing connection is unexpectedly disconnected, then WebSockHop will automatically attempt to reconnect. Anytime the connection is successfully established or reestablished, the "opened" event will be triggered. The above code will only finish once the entire transaction of connect->send->receive->close has executed successfully.
+
+Pings
+-----
 
 For additional durability, pings should be enabled. Pings allow WebSockHop to detect connection unresponsiveness quickly so that it may forcibly reconnect. Ping behavior is dependent on the formatter being used. Use with StringFormatter and JsonFormatter are described below. Special-purpose formatters may not require any setup for pings.
 
@@ -83,4 +86,71 @@ wsh.formatter.handlePing = function (message) {
     return false; // message wasn't a ping. continue processing the message normally
   }
 };
+```
+
+If handlePong is null, then any incoming message will count as a pong, and the message will be processed normally as well (not eaten). If handlePing is null, then there will be no special handling for incoming pings.
+
+It is possible to use a request/response interaction for pinging instead of plain messages. In this case, handlePong is not used, and instead ping responses will be matched to requests using the formatter's normal behavior. This will only work with formatters that support requests, such as JsonFormatter. Suppose you want to send requests of {type: 'ping'} for pings:
+
+```javascript
+wsh.formatter = new WebSockHop.JsonFormatter();
+
+// the request to periodically send
+wsh.formatter.pingRequest = {type: 'ping'};
+
+// code to handle incoming pings
+wsh.formatter.handlePing = function (message) {
+  if (message.type == 'ping') {
+    wsh.send({id: message.id});
+    return true; // message was a ping, and we've handled it
+  } else {
+    return false; // message wasn't a ping. continue processing the message normally
+  }
+};
+```
+
+More Examples
+-------------
+
+Here's how to connect to a Meteor server using DDP protocol. The code will try its best to maintain a subscription at all times and uses pings to detect for unresponsive connections quickly.
+
+```javascript
+var wsh = new WebSockHop('ws://localhost:3000/websocket');
+
+wsh.formatter = new WebSockHop.JsonFormatter();
+
+// the request to periodically send
+wsh.formatter.pingRequest = {msg: 'ping'};
+
+// code to handle incoming pings
+wsh.formatter.handlePing = function (message) {
+  if (message.msg == 'ping') {
+    wsh.send({id: message.id});
+    return true;
+  } else {
+    return false;
+  }
+};
+
+wsh.on('opened'), function () {
+  // connect
+  wsh.request({msg: 'connect', version: 'pre2',"support":["pre2"]}, function (reply) {
+    // set up subscription
+    wsh.request({msg: 'sub', name: 'all-players', params: []}, function (reply) {
+      console.log('subscription success');
+    });
+  });
+});
+
+wsh.on('message', function (message) {
+  if (message.msg == 'added') {
+    // handle added event
+  } else if (message.msg == 'changed') {
+    // handle changed event
+  } else if (message.msg == 'removed') {
+    // handle removed event
+  } else if (message.msg == 'ready') {
+    // handle ready event
+  }
+});
 ```
