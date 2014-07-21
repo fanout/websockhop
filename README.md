@@ -57,9 +57,9 @@ wsh.on('closed', function() {
 });
 ```
 
-WebSockHop tries to keep the connection open until the application explicitly closes it. If the underlying WebSocket fails to connect to the server, or if an existing connection is unexpectedly disconnected, then WebSockHop will automatically attempt to reconnect. Anytime the connection is successfully established or reestablished, the 'opened" event will be triggered. The above code will only finish once the entire transaction of connect->send->receive->close has executed successfully.
+WebSockHop tries to keep the connection open until the application explicitly closes it. If the underlying WebSocket fails to connect to the server, or if an existing connection is unexpectedly disconnected, then WebSockHop will automatically attempt to reconnect. Anytime the connection is successfully established or reestablished, the "opened" event will be triggered. The above code will only finish once the entire transaction of connect->send->receive->close has executed successfully.
 
-For additional durability, pings should be enabled. This allows WebSockHop to detect connection unresponsiveness quickly and forcibly reconnect. Ping behavior is dependent on the formatter in use. Use with StringFormatter and JsonFormatter are described below. Special-purpose formatters may not require any setup for pings.
+For additional durability, pings should be enabled. Pings allow WebSockHop to detect connection unresponsiveness quickly so that it may forcibly reconnect. Ping behavior is dependent on the formatter being used. Use with StringFormatter and JsonFormatter are described below. Special-purpose formatters may not require any setup for pings.
 
 Suppose you're using StringFormatter, and you want the client and the server to be able to ping each other by sending the string "ping" and replying with the string "pong":
 
