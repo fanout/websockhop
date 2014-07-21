@@ -109,8 +109,8 @@ wsh.formatter.handlePing = function (message) {
 };
 ```
 
-More Examples
--------------
+Examples
+--------
 
 Here's how to connect to a Meteor server using the DDP protocol. The code tries its best to maintain a subscription at all times and it uses pings to detect for unresponsive connections quickly.
 
