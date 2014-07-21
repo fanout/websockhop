@@ -112,7 +112,7 @@ wsh.formatter.handlePing = function (message) {
 More Examples
 -------------
 
-Here's how to connect to a Meteor server using DDP protocol. The code will try its best to maintain a subscription at all times and uses pings to detect for unresponsive connections quickly.
+Here's how to connect to a Meteor server using the DDP protocol. The code tries its best to maintain a subscription at all times and it uses pings to detect for unresponsive connections quickly.
 
 ```javascript
 var wsh = new WebSockHop('ws://localhost:3000/websocket');
