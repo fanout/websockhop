@@ -27,14 +27,59 @@ Features
 Usage
 -----
 
+Here's an example of sending a message to websocket.org's echo service, receiving a reply, and closing the connection:
+
 ```javascript
-// try to keep a connection open to this URI as best we can
 var wsh = new WebSockHop('ws://echo.websocket.org');
 
+// we'll use the string formatter (this is the default)
+wsh.formatter = new WebSockHop.StringFormatter();
+
+console.log('connecting...');
+
 wsh.on('opened', function () {
-  // every time the websocket connects, send a test message
-  wsh.request({type: 'echo', value: 'hello world'}, function (reply) {
-    console.log(reply.value);
-  }
+  console.log('connected');
+
+  // we're connected, send a message
+  wsh.send('test message');
 });
+
+wsh.on('message', function (message) {
+  console.log(message);
+
+  // we've received a reply, now disconnect
+  wsh.close();
+});
+
+wsh.on('closed', function() {
+  console.log('finished');
+  wsh = null;
+});
+```
+
+WebSockHop tries to keep the connection open until the application explicitly closes it. If the underlying WebSocket fails to connect to the server, or if an existing connection is unexpectedly disconnected, then WebSockHop will automatically attempt to reconnect. Anytime the connection is successfully established or reestablished, the 'opened" event will be triggered. The above code will only finish once the entire transaction of connect->send->receive->close has executed successfully.
+
+For additional durability, pings should be enabled. This allows WebSockHop to detect connection unresponsiveness quickly and forcibly reconnect. Ping behavior is dependent on the formatter in use. Use with StringFormatter and JsonFormatter are described below. Special-purpose formatters may not require any setup for pings.
+
+Suppose you're using StringFormatter, and you want the client and the server to be able to ping each other by sending the string "ping" and replying with the string "pong":
+
+```javascript
+wsh.formatter = new WebSockHop.StringFormatter();
+
+// the message to periodically send
+wsh.formatter.pingMessage = 'ping';
+
+// incoming messages to eat because they are considered responses to a ping
+wsh.formatter.isPong = function (message) {
+  return (message == 'pong');
+};
+
+wsh.formatter.handlePing = function (message) {
+  if (message == 'ping') {
+    wsh.send('pong');
+    return True; // message was a ping, and we've handled it
+  } else {
+    return False; // message wasn't a ping. continue processing the message normally
+  }
+};
 ```
