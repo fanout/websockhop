@@ -70,16 +70,17 @@ wsh.formatter = new WebSockHop.StringFormatter();
 wsh.formatter.pingMessage = 'ping';
 
 // incoming messages to eat because they are considered responses to a ping
-wsh.formatter.isPong = function (message) {
-  return (message == 'pong');
+wsh.formatter.handlePong = function (message) {
+  return (message == 'pong'); // return true if message was a pong
 };
 
+// code to handle incoming pings
 wsh.formatter.handlePing = function (message) {
   if (message == 'ping') {
     wsh.send('pong');
-    return True; // message was a ping, and we've handled it
+    return true; // message was a ping, and we've handled it
   } else {
-    return False; // message wasn't a ping. continue processing the message normally
+    return false; // message wasn't a ping. continue processing the message normally
   }
 };
 ```
