@@ -127,9 +127,11 @@
             switch(state) {
             case STATE_NO_SOCKET:
                 ws = new WebSockHop("wss://echo.websocket.org/");
+                ws.formatter = new WebSockHop.JsonFormatter();
+                ws.formatter.pingRequest = { type: 'ping' };
                 ws.useAutomaticPing = true;
-                ws.pingIntervalMsecs = 60000; // Change this to experiment with ping interval
-                ws.pingResponseTimeoutMsecs = 10000; // Change this to experiment with ping response timeout
+                ws.pingIntervalMsecs = 6000; // Change this to experiment with ping interval
+                ws.pingResponseTimeoutMsecs = 1000; // Change this to experiment with ping response timeout
                 ws.on('opening', function() {
                     console.log('echo: socket opening');
                     // It's possible to do something asynchronous here
@@ -218,7 +220,11 @@
                 var valueToSend = toSend.value.trim();
                 if (valueToSend.length) {
                     addMessageToList("#sent", valueToSend);
-                    ws.send(valueToSend);
+                    try {
+                        ws.send(valueToSend);
+                    } catch(e) {
+                        console.log("Error: " + e);
+                    }
                     toSend.value = "";
                 }
             } else {
@@ -240,9 +246,13 @@
                     var obj = { type: 'echo-obj', value: valueToSend };
                     console.log("echo: creating object: " + JSON.stringify(obj));
                     addMessageToList("#sent2", obj);
-                    ws.request(obj, function(requestObj) {
-                        addMessageToList("#echo2", requestObj);
-                    });
+                    try {
+                        ws.request(obj, function(requestObj) {
+                            addMessageToList("#echo2", requestObj);
+                        });
+                    } catch(e) {
+                        console.log("Error: " + e);
+                    }
                     toSend.value = "";
                 }
             } else {
