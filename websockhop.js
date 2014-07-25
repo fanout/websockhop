@@ -109,7 +109,7 @@
     };
 
     var isObject = function(obj) {
-        return obj === Object(obj);
+        return obj != null && obj === Object(obj);
     };
 
     var AsyncFor = function(init, check, after) {
@@ -215,16 +215,7 @@
 
     };
 
-    var PingType = {
-        "None": 0,
-        "Message": 1,
-        "Request": 2
-    };
-
-    var MessageFormatterBase = function() {
-        this.pingType = PingType.None;
-        this.createPingMessage = null;
-    };
+    var MessageFormatterBase = function() {};
     MessageFormatterBase.prototype.toMessage = function(obj) {
         throw "Not Implemented";
     };
@@ -240,15 +231,12 @@
     MessageFormatterBase.prototype.getPendingHandlerIds = function() {
         return null;
     };
-    MessageFormatterBase.prototype.pingAvailable = function() { return false; };
-    MessageFormatterBase.prototype.createPingMessage = null;
+    MessageFormatterBase.prototype.pingMessage = null;
+    MessageFormatterBase.prototype.pingRequest = null;
     MessageFormatterBase.prototype.handlePing = null;
     MessageFormatterBase.prototype.handlePong = null;
 
-    var StringFormatter = function() {
-        this.pingType = PingType.Message;
-        this.pingMessage = null;
-    };
+    var StringFormatter = function() {};
     StringFormatter.prototype = new MessageFormatterBase();
     StringFormatter.prototype.toMessage = function(obj) {
         return obj.toString();
@@ -256,16 +244,8 @@
     StringFormatter.prototype.fromMessage = function(message) {
         return message;
     };
-    StringFormatter.prototype.pingAvailable = function() {
-        return this.pingMessage != null;
-    };
-    StringFormatter.prototype.createPingMessage = function() {
-        return this.pingAvailable() ? this.pingMessage : null;
-    };
 
     var JsonFormatter = function() {
-        this.pingRequest = null;
-        this.pingType = PingType.Request;
         this._requestMap = {};
         this._nextId = 0;
     };
@@ -301,12 +281,6 @@
             }
         }
         return ids;
-    };
-    JsonFormatter.prototype.pingAvailable = function() {
-        return this.pingRequest != null && isObject(this.pingRequest);
-    };
-    JsonFormatter.prototype.createPingMessage = function() {
-        return this.pingAvailable() ? shallowCopy(this.pingRequest) : null;
     };
 
     var ErrorEnumValue = {
@@ -461,39 +435,36 @@
     };
 
     WebSockHop.prototype._resetPingTimer = function() {
-        if (this.formatter != null && this.formatter.pingAvailable()) {
-            debug.log("WebSockHop: resetting ping.");
-            this._clearPingTimers();
-            var _this = this;
-            this._pingTimer = setTimeout(function() {
-                this.sendPingRequest();
-            }, this.pingIntervalMsecs, this);
-            debug.log("WebSockHop: ping in " + this.pingIntervalMsecs + " ms");
-        }
+        debug.log("WebSockHop: resetting ping timer.");
+        this._clearPingTimers();
+        var _this = this;
+        this._pingTimer = setTimeout(function() {
+            this.sendPingRequest();
+        }, this.pingIntervalMsecs, this);
+        debug.log("WebSockHop: attempting ping in " + this.pingIntervalMsecs + " ms");
     };
     WebSockHop.prototype.sendPingRequest = function() {
-        var pingMessage = this.formatter.createPingMessage != null ? this.formatter.createPingMessage() : null;
-        if (pingMessage != null) {
-
-            if (this.formatter.pingType == PingType.Request) {
-                var _this = this;
-                this.request(pingMessage, function(obj) {
+        var _this = this;
+        if (this.formatter != null) {
+            if (isObject(this.formatter.pingRequest)) {
+                var pingRequest = shallowCopy(this.formatter.pingRequest);
+                this.request(pingRequest, function (obj) {
                     _this._lastReceivedPongId = obj.id;
-                }, function(error) {
+                }, function (error) {
                     if (error.type == ErrorEnumValue.Timeout) {
                         debug.log("WebSockHop: no ping response, handling as disconnected");
                     }
                 }, this.pingResponseTimeoutMsecs, true);
-                this._lastSentPingId = pingMessage.id;
-                debug.log("WebSockHop: > PING [" + pingMessage.id + "], requiring response in " + this.pingResponseTimeoutMsecs + " ms");
-            } else if (this.formatter.pingType == PingType.Message) {
+                this._lastSentPingId = pingRequest.id;
+                debug.log("WebSockHop: > PING [" + pingRequest.id + "], requiring response in " + this.pingResponseTimeoutMsecs + " ms");
+            } else if (this.formatter.pingMessage != null) {
+                var pingMessage = this.formatter.pingMessage;
                 this.send(pingMessage);
             } else {
-                throw "Invalid Ping Type";
+                debug.log("WebSockHop: No ping set up for message formatter, not performing ping.");
             }
-
         } else {
-            debug.log("WebSockHop: No ping set up for message formatter, not performing ping.");
+            debug.log("WebSockHop: Time for ping, but no formatter selected, not performing ping.");
         }
     };
 
@@ -570,22 +541,22 @@
     };
     WebSockHop.prototype._dispatchMessage = function (message) {
         var isHandled = false;
+        var obj = this.formatter.fromMessage(message);
         if (this.formatter != null) {
             var isPong = false;
             var pongId = 0;
-            var obj = this.formatter.fromMessage(message);
-            if (this.formatter.pingType == PingType.Request) {
-                var handler = isObject(obj) ? this.formatter.getHandlerForResponse(obj) : null;
-                if (handler != null) {
-                    handler.callback(obj);
-                    if (this._lastReceivedPongId == this._lastSentPingId && this._lastSentPingId != 0) {
-                        this._lastSentPingId = 0;
-                        this._lastReceivedPongId = 0;
-                        isPong = true;
-                        pongId = obj.id;
-                    }
-                    isHandled = true;
+            // See if this object might exist in the handlers lookup.
+            // This would return null if the formatter does not support requests.
+            var handler = isObject(obj) ? this.formatter.getHandlerForResponse(obj) : null;
+            if (handler != null) {
+                handler.callback(obj);
+                if (this._lastReceivedPongId == this._lastSentPingId && this._lastSentPingId != 0) {
+                    this._lastSentPingId = 0;
+                    this._lastReceivedPongId = 0;
+                    isPong = true;
+                    pongId = obj.id;
                 }
+                isHandled = true;
             } else {
                 if (this.formatter.handlePong != null) {
                     isPong = this.formatter.handlePong(obj);
@@ -593,19 +564,20 @@
                         isHandled = true;
                     }
                 } else {
+                    // If handlePong is null, then any message counts as a pong,
+                    // but we don't eat the message.
                     isPong = true;
-                    // any message is a pong, but we don't eat the message.
                 }
             }
             if (isPong) {
                 if (pongId > 0) {
-                    debug.log("WebSockHop: < PONG [" + obj.id + "]");
+                    debug.log("WebSockHop: < PONG [" + pongId + "]");
                 } else {
                     debug.log("WebSockHop: < PONG");
                 }
                 this._resetPingTimer();
             }
-            if (this.formatter.handlePing != null) {
+            if (!isHandled && this.formatter.handlePing != null) {
                 var isPing = this.formatter.handlePing(obj);
                 if (isPing) {
                     debug.log("WebSockHop: Received PING message, handled.");
@@ -626,7 +598,6 @@
         }
     };
 
-    WebSockHop.PingTyoe = PingType;
     WebSockHop.ErrorEnumValue = ErrorEnumValue;
     WebSockHop.StringFormatter = StringFormatter;
     WebSockHop.JsonFormatter = JsonFormatter;
