@@ -26,6 +26,7 @@
     var debug;
 
     if (debugMode) {
+        /*
         if (Function.prototype.bind) {
             debug = {
                 log: window.console.log.bind(window.console),
@@ -33,15 +34,15 @@
                 info: window.console.info.bind(window.console),
                 warn: window.console.warn.bind(window.console)
             };
-        } else {
-            var log = function(output) { window.console.log(output); };
+        }
+        */
+        var log = function(output) { window.console.log(new Date().toTimeString() + " - " + output); };
 
-            debug = {
-                log: log,
-                error: log,
-                warn: log,
-                info: log
-            }
+        debug = {
+            log: log,
+            error: log,
+            warn: log,
+            info: log
         }
     } else {
         var __no_op = function() {};
@@ -63,7 +64,7 @@
         var copy = {};
         for (var key in obj) {
             if (obj.hasOwnProperty(key)) {
-                copy.key = obj.key;
+                copy[key] = obj[key];
             }
         }
         return copy;
@@ -307,7 +308,7 @@
         this.connectionTimeoutMsecs = 10000; // 10 seconds default connection timeout
 
         this._pingTimer = null;
-        this._lastSentPingId = 0;
+        this._lastSentPingObj = null;
         this._lastReceivedPongId = 0;
         this.pingIntervalMsecs = 60000; // 60 seconds default ping timeout
         this.pingResponseTimeoutMsecs = 10000; // 10 seconds default ping response timeout
@@ -455,7 +456,7 @@
                         debug.log("WebSockHop: no ping response, handling as disconnected");
                     }
                 }, this.pingResponseTimeoutMsecs, true);
-                this._lastSentPingId = pingRequest.id;
+                this._lastSentPingObj = pingRequest;
                 debug.log("WebSockHop: > PING [" + pingRequest.id + "], requiring response in " + this.pingResponseTimeoutMsecs + " ms");
             } else if (this.formatter.pingMessage != null) {
                 var pingMessage = this.formatter.pingMessage;
@@ -486,7 +487,7 @@
         if (this._socket) {
             debug.log("WebSockHop: abort() called on live socket, performing forceful shutdown.  Did you mean to call close() ?");
             this._clearPingTimers();
-            this._lastSentPingId = 0;
+            this._lastSentPingObj = null;
             this._lastReceivedPongId = 0;
             this._socket.onclose = null;
             this._socket.onmessage = null;
@@ -508,15 +509,15 @@
         }
     };
     WebSockHop.prototype.request = function (obj, callback, errorCallback, timeoutMsecs, disconnectOnTimeout) {
-        var requestTimeoutMsecs = typeof timeoutMsecs !== 'undefined' ? timeoutMsecs : this.defaultRequestTimeoutMsecs;
-        var requestDisconnectOnTimeout = typeof disconnectOnTimeout !== 'undefined' ? disconnectOnTimeout : this.defaultDisconnectOnRequestTimeout;
+        obj._requestTimeoutTimer = null;
+        obj._requestTimeoutMsecs = typeof timeoutMsecs !== 'undefined' ? timeoutMsecs : this.defaultRequestTimeoutMsecs;
+        obj._requestDisconnectOnTimeout = typeof disconnectOnTimeout !== 'undefined' ? disconnectOnTimeout : this.defaultDisconnectOnRequestTimeout;
 
-        var requestTimeoutTimer = null;
         this.formatter.trackRequest(obj, {
             callback: function (o) {
-                if (requestTimeoutTimer != null) {
-                    window.clearTimeout(requestTimeoutTimer);
-                    requestTimeoutTimer = null;
+                if (obj._requestTimeoutTimer != null) {
+                    window.clearTimeout(obj._requestTimeoutTimer);
+                    obj._requestTimeoutTimer = null;
                 }
                 if (callback != null) {
                     callback(o);
@@ -529,15 +530,26 @@
             }
         });
         this.send(obj);
-        if (requestTimeoutMsecs > 0) {
-            requestTimeoutTimer = setTimeout(function() {
-                debug.log("WebSockHop: timeout exceeded [" + obj.id + "]")
-                this._dispatchErrorMessage(obj.id, {type: ErrorEnumValue.Timeout});
-                if (requestDisconnectOnTimeout) {
-                    this._raiseErrorEvent(false);
-                }
-            }, requestTimeoutMsecs, this);
+        if (obj._requestTimeoutMsecs > 0) {
+
+            this._startRequestTimeout(obj);
+
         }
+    };
+    WebSockHop.prototype._startRequestTimeout = function(obj) {
+
+        if (obj._requestTimeoutTimer != null) {
+            window.clearTimeout(obj._requestTimeoutTimer);
+            obj._requestTimeoutTimer = null;
+        }
+        obj._requestTimeoutTimer = setTimeout(function() {
+            debug.log("WebSockHop: timeout exceeded [" + obj.id + "]")
+            this._dispatchErrorMessage(obj.id, {type: ErrorEnumValue.Timeout});
+            if (obj._requestDisconnectOnTimeout) {
+                this._raiseErrorEvent(false);
+            }
+        }, obj._requestTimeoutMsecs, this);
+
     };
     WebSockHop.prototype._dispatchMessage = function (message) {
         var isHandled = false;
@@ -545,19 +557,34 @@
         if (this.formatter != null) {
             var isPong = false;
             var pongId = 0;
-            // See if this object might exist in the handlers lookup.
-            // This would return null if the formatter does not support requests.
-            var handler = isObject(obj) ? this.formatter.getHandlerForResponse(obj) : null;
-            if (handler != null) {
-                handler.callback(obj);
-                if (this._lastReceivedPongId == this._lastSentPingId && this._lastSentPingId != 0) {
-                    this._lastSentPingId = 0;
-                    this._lastReceivedPongId = 0;
-                    isPong = true;
-                    pongId = obj.id;
+
+            if (isObject(this.formatter.pingRequest)) {
+
+                // Check for request-based ping response
+
+                // See if this object is a response to a request().
+                var handler = isObject(obj) ? this.formatter.getHandlerForResponse(obj) : null;
+                if (handler != null) {
+                    handler.callback(obj);
+                    if (this._lastSentPingObj != null && this._lastSentPingObj.id == this._lastReceivedPongId) {
+                        this._lastSentPingObj = null;
+                        this._lastReceivedPongId = 0;
+                        isPong = true;
+                        pongId = obj.id;
+                    }
+                    isHandled = true;
                 }
-                isHandled = true;
-            } else {
+
+                // If this is NOT a pong then just extend the response timer, if any
+                if (!isPong && this._lastSentPingObj != null) {
+                    debug.log("WebSockHop: Non-pong received during pong response period, extending delay...");
+                    this._startRequestTimeout(this._lastSentPingObj);
+                }
+
+            } else if (this.formatter.pingMessage != null) {
+
+                // Check for message-based ping response
+
                 if (this.formatter.handlePong != null) {
                     isPong = this.formatter.handlePong(obj);
                     if (isPong) {
@@ -569,6 +596,7 @@
                     isPong = true;
                 }
             }
+
             if (isPong) {
                 if (pongId > 0) {
                     debug.log("WebSockHop: < PONG [" + pongId + "]");
