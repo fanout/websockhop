@@ -149,11 +149,10 @@
 
             switch(state) {
             case STATE_NO_SOCKET:
-                //ws = new WebSockHop("wss://echo.websocket.org/");
-                ws = new WebSockHop("ws://localhost:3000/updates/");
+                ws = new WebSockHop("wss://echo.websocket.org/");
                 ws.formatter = new WebSockHop.JsonFormatter();
                 ws.formatter.pingRequest = { type: 'ping' };
-                ws.pingIntervalMsecs = 6000; // Change this to experiment with ping interval
+                ws.pingIntervalMsecs = 60000; // Change this to experiment with ping interval
                 ws.pingResponseTimeoutMsecs = 10000; // Change this to experiment with ping response timeout
                 ws.on('opening', function() {
                     console.log('echo: socket opening');
