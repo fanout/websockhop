@@ -573,7 +573,10 @@
                 var handler = isObject(obj) ? this.formatter.getHandlerForResponse(obj) : null;
                 if (handler != null) {
                     handler.callback(obj);
-                    if (this._lastSentPingRequest != null && this._lastSentPingRequest.id == this._lastReceivedPongId) {
+                    if (this._lastSentPingRequest != null &&
+                        this._lastSentPingRequest.obj != null &&
+                        this._lastSentPingRequest.obj.id == this._lastReceivedPongId
+                    ) {
                         this._lastSentPingRequest = null;
                         this._lastReceivedPongId = 0;
                         isPong = true;
