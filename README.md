@@ -58,6 +58,38 @@ wsh.on('closed', function() {
 
 WebSockHop tries to keep the underlying WebSocket connection open until the application explicitly closes it. If there is a failure connecting to the server, or if an existing connection is unexpectedly disconnected, then WebSockHop will automatically attempt to reconnect. Anytime the connection is successfully established or reestablished, the "opened" event will be triggered. The above code will only finish once the entire transaction of connect->send->receive->close has executed successfully.
 
+Requests
+--------
+
+WebSockHop can perform request/response interactions. Whether this feature works or not depends on the formatter in use. JsonFormatter supports it. The main reason to have WebSockHop track requests is to simplify your code, and also so it can handle timing out requests. If the connection is lost, then all outstanding requests are automatically failed.
+
+You can even configure WebSockHop to kill the connection if a request times out. Often if one request doesn't work, none are going to work, since the problem is almost always network related.
+
+Here's how to use a request:
+
+```javascript
+var wsh = new WebSockHop('ws://echo.websocket.org');
+
+wsh.formatter = new WebSockHop.JsonFormatter();
+
+// timeout request after 8 seconds with no reply
+wsh.defaultRequestTimeoutMsecs = 8000;
+
+// disconnect & reconnect if the request times out
+wsh.defaultDisconnectOnRequestTimeout = true;
+
+console.log('connecting...');
+
+wsh.on('opened', function () {
+  console.log('connected');
+
+  // we're connected, send a test request
+  wsh.request({hello: 'world'}, function (response) {
+    console.log('got response');
+  });
+});
+```
+
 Pings
 -----
 
