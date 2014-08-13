@@ -9,7 +9,7 @@
     var DEBUG = true;
     var isWindow = function(variable) {
         return variable && variable.document && variable.location && variable.alert && variable.setInterval;
-    }
+    };
     if (!isWindow(window)) {
         throw "The current version of WebSockHop may only be used within the context of a browser.";
     }
@@ -26,6 +26,7 @@
     var debug;
 
     if (debugMode) {
+        /*
         if (Function.prototype.bind) {
             debug = {
                 log: window.console.log.bind(window.console),
@@ -33,15 +34,15 @@
                 info: window.console.info.bind(window.console),
                 warn: window.console.warn.bind(window.console)
             };
-        } else {
-            var log = function(output) { window.console.log(output); };
+        }
+        */
+        var log = function(output) { window.console.log(new Date().toTimeString() + " - " + output); };
 
-            debug = {
-                log: log,
-                error: log,
-                warn: log,
-                info: log
-            }
+        debug = {
+            log: log,
+            error: log,
+            warn: log,
+            info: log
         }
     } else {
         var __no_op = function() {};
@@ -57,6 +58,16 @@
     var copyArray = function (array) {
         var args = Array.prototype.slice.call(arguments, 1);
         return Array.prototype.slice.apply(array, args);
+    };
+
+    var shallowCopy = function (obj) {
+        var copy = {};
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                copy[key] = obj[key];
+            }
+        }
+        return copy;
     };
 
     var indexOfItemInArray = function (array, item) {
@@ -99,7 +110,7 @@
     };
 
     var isObject = function(obj) {
-        return obj === Object(obj);
+        return obj != null && obj === Object(obj);
     };
 
     var AsyncFor = function(init, check, after) {
@@ -205,46 +216,72 @@
 
     };
 
-    var messageFormatter = {
-        _requestMap: {},
-        _nextId: 0,
-        toMessage: function(obj) {
-            return JSON.stringify(obj);
-        },
-        fromMessage: function(message) {
-            return JSON.parse(message);
-        },
-        trackRequest: function(requestObject, handler) {
-            requestObject.id = ++this._nextId;
-            this._requestMap[requestObject.id.toString()] = handler;
-            return requestObject;
-        },
-        getHandlerForResponse: function(responseObject) {
-            if (!("id" in responseObject)) {
-                return null;
-            }
-            var id = responseObject.id.toString();
-            if (!(id in this._requestMap)) {
-                return null;
-            }
-            var handler = this._requestMap[id];
-            delete this._requestMap[id];
-            return handler;
-        },
-        getPendingHandlerIds: function() {
-            var ids = [];
-            for(var key in this._requestMap) {
-                if (this._requestMap.hasOwnProperty(key)) {
-                    ids.push(key);
-                }
-            }
-            return ids;
-        },
-        createPingRequest: function() {
-            return {
-                type: 'ping'
+    var MessageFormatterBase = function() {};
+    MessageFormatterBase.prototype.toMessage = function(obj) {
+        throw "Not Implemented";
+    };
+    MessageFormatterBase.prototype.fromMessage = function(message) {
+        throw "Not Implemented";
+    };
+    MessageFormatterBase.prototype.trackRequest = function(requestObject, handler) {
+        throw "Not Implemented";
+    };
+    MessageFormatterBase.prototype.getHandlerForResponse = function(responseObject) {
+        return null;
+    };
+    MessageFormatterBase.prototype.getPendingHandlerIds = function() {
+        return null;
+    };
+    MessageFormatterBase.prototype.pingMessage = null;
+    MessageFormatterBase.prototype.pingRequest = null;
+    MessageFormatterBase.prototype.handlePing = null;
+    MessageFormatterBase.prototype.handlePong = null;
+
+    var StringFormatter = function() {};
+    StringFormatter.prototype = new MessageFormatterBase();
+    StringFormatter.prototype.toMessage = function(obj) {
+        return obj.toString();
+    };
+    StringFormatter.prototype.fromMessage = function(message) {
+        return message;
+    };
+
+    var JsonFormatter = function() {
+        this._requestMap = {};
+        this._nextId = 0;
+    };
+    JsonFormatter.prototype = new MessageFormatterBase();
+    JsonFormatter.prototype.toMessage = function(obj) {
+        return JSON.stringify(obj);
+    };
+    JsonFormatter.prototype.fromMessage = function(message) {
+        return JSON.parse(message);
+    };
+    JsonFormatter.prototype.trackRequest = function(requestObject, handler) {
+        requestObject.id = ++this._nextId;
+        this._requestMap[requestObject.id.toString()] = handler;
+        return requestObject;
+    };
+    JsonFormatter.prototype.getHandlerForResponse = function(responseObject) {
+        if (!("id" in responseObject)) {
+            return null;
+        }
+        var id = responseObject.id.toString();
+        if (!(id in this._requestMap)) {
+            return null;
+        }
+        var handler = this._requestMap[id];
+        delete this._requestMap[id];
+        return handler;
+    };
+    JsonFormatter.prototype.getPendingHandlerIds = function() {
+        var ids = [];
+        for(var key in this._requestMap) {
+            if (this._requestMap.hasOwnProperty(key)) {
+                ids.push(key);
             }
         }
+        return ids;
     };
 
     var ErrorEnumValue = {
@@ -266,13 +303,13 @@
         this._tries = 0;
         this._aborted = false;
         this._closing = false;
-        this.messageFormatter = messageFormatter;
+        this.formatter = null;
 
         this.connectionTimeoutMsecs = 10000; // 10 seconds default connection timeout
 
-        this.useAutomaticPing = false; // If set to true, system will automatically send "ping" periodically
-
         this._pingTimer = null;
+        this._lastSentPing = null;
+        this._lastReceivedPongId = 0;
         this.pingIntervalMsecs = 60000; // 60 seconds default ping timeout
         this.pingResponseTimeoutMsecs = 10000; // 10 seconds default ping response timeout
 
@@ -321,6 +358,9 @@
         });
     };
     WebSockHop.prototype._start = function() {
+        if (this.formatter == null) {
+            throw "A message formatter must be specified before using WebSockHop.";
+        }
         var _this = this;
         this._raiseEvent("opening", function() {
             if (!_this._aborted) {
@@ -345,9 +385,7 @@
                     clearConnectionTimeout();
                     _this._tries = 0;
                     _this._raiseEvent("opened");
-                    if (_this.useAutomaticPing) {
-                        _this._resetPingTimer();
-                    }
+                    _this._resetPingTimer();
                 };
                 socket.onclose = function(event) {
                     debug.log("WebSockHop: WebSocket::onclose { wasClean: " + (event.wasClean ? "true" : "false") + ", code: " + event.code + " }");
@@ -366,9 +404,6 @@
                 socket.onmessage = function(event) {
                     debug.log("WebSockHop: WebSocket::onmessage { data: " + event.data + " }");
                     _this._dispatchMessage(event.data);
-                    if (_this.useAutomaticPing) {
-                        _this._resetPingTimer();
-                    }
                 };
             }
         });
@@ -377,10 +412,14 @@
         var _this = this;
         this._raiseEvent("error", !isClosing, function() {
             _this._socket = null;
-            var pendingRequestIds = _this.messageFormatter.getPendingHandlerIds();
-            for (var i = 0; i < pendingRequestIds.length; i++) {
-                var requestId = pendingRequestIds[i];
-                _this._dispatchErrorMessage(requestId, {type: ErrorEnumValue.Disconnect});
+            if (_this.formatter != null) {
+                var pendingRequestIds = _this.formatter.getPendingHandlerIds();
+                if (pendingRequestIds != null) {
+                    for (var i = 0; i < pendingRequestIds.length; i++) {
+                        var requestId = pendingRequestIds[i];
+                        _this._dispatchErrorMessage(requestId, {type: ErrorEnumValue.Disconnect});
+                    }
+                }
             }
             if (!isClosing) {
                 _this._attemptConnect();
@@ -397,31 +436,44 @@
     };
 
     WebSockHop.prototype._resetPingTimer = function() {
-        debug.log("WebSockHop: resetting ping.");
+        debug.log("WebSockHop: resetting ping timer.");
         this._clearPingTimers();
         var _this = this;
         this._pingTimer = setTimeout(function() {
             this.sendPingRequest();
         }, this.pingIntervalMsecs, this);
-        debug.log("WebSockHop: ping in " + this.pingIntervalMsecs + " ms");
+        debug.log("WebSockHop: attempting ping in " + this.pingIntervalMsecs + " ms");
     };
     WebSockHop.prototype.sendPingRequest = function() {
-        var pingRequest = this.messageFormatter.createPingRequest();
-
-        this.request(pingRequest, function(obj) {
-            debug.log("WebSockHop: < PONG [" + obj.id + "]");
-        }, function(error) {
-            if (error.type == ErrorEnumValue.Timeout) {
-                debug.log("WebSockHop: no ping response, handling as disconnected");
+        var _this = this;
+        if (this.formatter != null) {
+            if (isObject(this.formatter.pingRequest)) {
+                var ping = shallowCopy(this.formatter.pingRequest);
+                var request = this.request(ping, function (obj) {
+                    _this._lastReceivedPongId = obj.id;
+                }, function (error) {
+                    if (error.type == ErrorEnumValue.Timeout) {
+                        debug.log("WebSockHop: no ping response, handling as disconnected");
+                    }
+                }, this.pingResponseTimeoutMsecs, true);
+                this._lastSentPing = request;
+                debug.log("WebSockHop: > PING [" + ping.id + "], requiring response in " + this.pingResponseTimeoutMsecs + " ms");
+            } else if (this.formatter.pingMessage != null) {
+                var ping = this.formatter.pingMessage;
+                var pingMessage = this._sendPingMessage(ping, this.pingResponseTimeoutMsecs);
+                this._lastSentPing = pingMessage;
+                debug.log("WebSockHop: > PING, requiring response in " + this.pingResponseTimeoutMsecs + " ms");
+            } else {
+                debug.log("WebSockHop: No ping set up for message formatter, not performing ping.");
             }
-        }, this.pingResponseTimeoutMsecs, true);
-
-        debug.log("WebSockHop: > PING [" + pingRequest.id + "], requiring response in " + this.pingResponseTimeoutMsecs + " ms");
+        } else {
+            debug.log("WebSockHop: Time for ping, but no formatter selected, not performing ping.");
+        }
     };
 
     WebSockHop.prototype.send = function(obj) {
         if (this._socket) {
-            var message = this.messageFormatter.toMessage(obj);
+            var message = this.formatter.toMessage(obj);
             this._socket.send(message);
         }
     };
@@ -437,6 +489,8 @@
         if (this._socket) {
             debug.log("WebSockHop: abort() called on live socket, performing forceful shutdown.  Did you mean to call close() ?");
             this._clearPingTimers();
+            this._lastSentPing = null;
+            this._lastReceivedPongId = 0;
             this._socket.onclose = null;
             this._socket.onmessage = null;
             this._socket.onerror = null;
@@ -457,16 +511,22 @@
         }
     };
     WebSockHop.prototype.request = function (obj, callback, errorCallback, timeoutMsecs, disconnectOnTimeout) {
-        var requestTimeoutMsecs = timeoutMsecs || this.defaultRequestTimeoutMsecs;
-        var requestDisconnectOnTimeout = disconnectOnTimeout || this.defaultDisconnectOnRequestTimeout;
-
-        var requestTimeoutTimer = null;
-        this.messageFormatter.trackRequest(obj, {
-            callback: function (o) {
-                if (requestTimeoutTimer != null) {
-                    window.clearTimeout(requestTimeoutTimer);
-                    requestTimeoutTimer = null;
+        var request = {
+            obj: obj,
+            requestTimeoutTimer: null,
+            requestTimeoutMsecs: typeof timeoutMsecs !== 'undefined' ? timeoutMsecs : this.defaultRequestTimeoutMsecs,
+            requestDisconnectOnTimeout: typeof disconnectOnTimeout !== 'undefined' ? disconnectOnTimeout : this.defaultDisconnectOnRequestTimeout,
+            clearTimeout: function() {
+                if (this.requestTimeoutTimer != null) {
+                    window.clearTimeout(this.requestTimeoutTimer);
+                    this.requestTimeoutTimer = null;
                 }
+            }
+        };
+
+        this.formatter.trackRequest(obj, {
+            callback: function (o) {
+                request.clearTimeout();
                 if (callback != null) {
                     callback(o);
                 }
@@ -478,33 +538,148 @@
             }
         });
         this.send(obj);
-        if (requestTimeoutMsecs > 0) {
-            requestTimeoutTimer = setTimeout(function() {
-                debug.log("WebSockHop: timeout exceeded [" + obj.id + "]")
-                this._dispatchErrorMessage(obj.id, {type: ErrorEnumValue.Timeout});
-                if (requestDisconnectOnTimeout) {
-                    this._raiseErrorEvent(false);
-                }
-            }, requestTimeoutMsecs, this);
+        if (request.requestTimeoutMsecs > 0) {
+
+            this._startRequestTimeout(request);
+
         }
+
+        return request;
+    };
+    WebSockHop.prototype._startRequestTimeout = function(request) {
+
+        var obj = request.obj;
+        request.clearTimeout();
+        request.requestTimeoutTimer = setTimeout(function() {
+            debug.log("WebSockHop: timeout exceeded [" + obj.id + "]");
+            this._dispatchErrorMessage(obj.id, {type: ErrorEnumValue.Timeout});
+            if (request.requestDisconnectOnTimeout) {
+                this._raiseErrorEvent(false);
+            }
+        }, request.requestTimeoutMsecs, this);
+
+    };
+    WebSockHop.prototype._sendPingMessage = function(message, timeoutMsecs) {
+        var pingMessage = {
+            obj: message,
+            messageTimeoutTimer: null,
+            messageTimeoutMsecs: typeof timeoutMsecs !== 'undefined' ? timeoutMsecs : this.defaultRequestTimeoutMsecs,
+            clearTimeout: function() {
+                if (this.messageTimeoutTimer != null) {
+                    window.clearTimeout(this.messageTimeoutTimer);
+                    this.messageTimeoutTimer = null;
+                }
+            }
+        };
+        this.send(message);
+        if (pingMessage.messageTimeoutMsecs > 0) {
+            this._startPingMessageTimeout(pingMessage);
+        }
+        return pingMessage;
+    };
+    WebSockHop.prototype._startPingMessageTimeout = function(pingMessage) {
+
+        var obj = pingMessage.obj;
+        pingMessage.clearTimeout();
+        pingMessage.messageTimeoutTimer = setTimeout(function() {
+            debug.log("WebSockHop: timeout exceeded");
+            this._raiseErrorEvent(false);
+        }, pingMessage.messageTimeoutMsecs, this);
+
     };
     WebSockHop.prototype._dispatchMessage = function (message) {
-        var obj = this.messageFormatter.fromMessage(message);
-        var handler = isObject(obj) ? this.messageFormatter.getHandlerForResponse(obj) : null;
-        if (handler != null) {
-            handler.callback(obj);
-        } else {
+        var isHandled = false;
+        var obj = this.formatter.fromMessage(message);
+        if (this.formatter != null) {
+            var isPong = false;
+            var pongId = 0;
+
+            if (isObject(this.formatter.pingRequest)) {
+
+                // Check for request-based ping response
+
+                // See if this object is a response to a request().
+                var handler = isObject(obj) ? this.formatter.getHandlerForResponse(obj) : null;
+                if (handler != null) {
+                    handler.callback(obj);
+                    if (this._lastSentPing != null &&
+                        this._lastSentPing.obj != null &&
+                        this._lastSentPing.obj.id == this._lastReceivedPongId
+                    ) {
+                        this._lastSentPing = null;
+                        this._lastReceivedPongId = 0;
+                        isPong = true;
+                        pongId = obj.id;
+                    }
+                    isHandled = true;
+                }
+
+                // If this is NOT a pong then just extend the response timer, if any
+                if (!isPong && this._lastSentPing != null) {
+                    debug.log("WebSockHop: Non-pong received during pong response period, extending delay...");
+                    this._startRequestTimeout(this._lastSentPing);
+                }
+
+            } else if (this.formatter.pingMessage != null) {
+
+                // Check for message-based ping response
+
+                if (this.formatter.handlePong != null) {
+                    isPong = this.formatter.handlePong(obj);
+                    if (isPong) {
+                        isHandled = true;
+                    }
+                } else {
+                    // If handlePong is null, then any message counts as a pong,
+                    // but we don't eat the message.
+                    isPong = true;
+                }
+
+                if (this._lastSentPing != null) {
+                    if (isPong) {
+                        // If this is a pong then clear the pong timer.
+                        this._lastSentPing.clearTimeout();
+                        this._lastSentPing = null;
+                    } else {
+                        // If this is NOT a pong then just extend the response timer, if any
+                        debug.log("WebSockHop: Non-pong received during pong response period, extending delay...");
+                        this._startPingMessageTimeout(this._lastSentPing);
+                    }
+                }
+            }
+
+            if (isPong) {
+                if (pongId > 0) {
+                    debug.log("WebSockHop: < PONG [" + pongId + "]");
+                } else {
+                    debug.log("WebSockHop: < PONG");
+                }
+                this._resetPingTimer();
+            }
+            if (!isHandled && this.formatter.handlePing != null) {
+                var isPing = this.formatter.handlePing(obj);
+                if (isPing) {
+                    debug.log("WebSockHop: Received PING message, handled.");
+                    isHandled = true;
+                }
+            }
+        }
+        if (!isHandled) {
             this._raiseEvent("message", obj);
         }
     };
     WebSockHop.prototype._dispatchErrorMessage = function (id, error) {
-        var handler = this.messageFormatter.getHandlerForResponse({id:id});
-        if (handler != null) {
-            handler.errorCallback(error);
+        if (this.formatter != null) {
+            var handler = this.formatter.getHandlerForResponse({id:id});
+            if (handler != null) {
+                handler.errorCallback(error);
+            }
         }
     };
 
     WebSockHop.ErrorEnumValue = ErrorEnumValue;
+    WebSockHop.StringFormatter = StringFormatter;
+    WebSockHop.JsonFormatter = JsonFormatter;
 
     return WebSockHop;
 });

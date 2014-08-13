@@ -86,6 +86,29 @@
         <ul id="echo2" class="echo-list"></ul>
     </section>
 
+    <section>
+        <h4>
+            Once WebSockHop is connected, use this form to send an arbitrary object to the server.
+        </h4>
+        <form id="testForm3">
+            <div class="form-group">
+                <label for="toSend">JSON-encoded object to send</label>
+                <input type="text" id="toSend3" class="form-control" />
+            </div>
+            <button id="sendButton3" class="btn btn-primary">Send</button>
+        </form>
+
+        <h4>
+            Objects sent to the server will be listed below.
+        </h4>
+        <ul id="sent3" class="echo-list"></ul>
+
+        <h4>
+            Objects echoed back from the server will be listed below.
+        </h4>
+        <ul id="echo3" class="echo-list"></ul>
+    </section>
+
 </div>
 
 <script src="./websockhop.js"></script>
@@ -127,7 +150,8 @@
             switch(state) {
             case STATE_NO_SOCKET:
                 ws = new WebSockHop("wss://echo.websocket.org/");
-                ws.useAutomaticPing = true;
+                ws.formatter = new WebSockHop.JsonFormatter();
+                ws.formatter.pingRequest = { type: 'ping' };
                 ws.pingIntervalMsecs = 60000; // Change this to experiment with ping interval
                 ws.pingResponseTimeoutMsecs = 10000; // Change this to experiment with ping response timeout
                 ws.on('opening', function() {
@@ -252,9 +276,42 @@
             event.preventDefault();
         });
 
+        var form = document.querySelector("#testForm3");
+        form.addEventListener("submit", function(event) {
+
+            console.log("echo: form 3 submitted");
+
+            if (state == STATE_CONNECTED) {
+                var toSend = document.querySelector("#toSend3");
+                var valueToSend = toSend.value.trim();
+
+                if (valueToSend.length) {
+                    var obj = null;
+                    try {
+                        obj = JSON.parse(valueToSend);
+                    } catch(e) {
+                        console.log("echo: cannot parse JSON.");
+                        obj = null;
+                    }
+
+                    if (obj != null) {
+                        addMessageToList("#sent3", obj);
+                        ws.send(obj);
+                        console.log(obj);
+                        toSend.value = "";
+                    }
+                }
+            } else {
+                console.log("echo: not connected, doing nothing.");
+            }
+
+            event.preventDefault();
+        });
+
         var status = document.querySelector("#status");
         var sendButton = document.querySelector("#sendButton");
         var sendButton2 = document.querySelector("#sendButton2");
+        var sendButton3 = document.querySelector("#sendButton3");
 
         var updateUi = function() {
 
@@ -264,30 +321,35 @@
                 switchButton.innerHTML = "Connect";
                 sendButton.disabled = true;
                 sendButton2.disabled = true;
+                sendButton3.disabled = true;
                 break;
             case STATE_WAITING_TO_OPEN:
                 status.innerHTML = "WebSockHop is waiting to open.";
                 switchButton.innerHTML = "Cancel";
                 sendButton.disabled = true;
                 sendButton2.disabled = true;
+                sendButton3.disabled = true;
                 break;
             case STATE_WAITING_TO_CONNECT:
                 status.innerHTML = "WebSockHop is initialized, now connecting ...";
                 switchButton.innerHTML = "Abort connect";
                 sendButton.disabled = true;
                 sendButton2.disabled = true;
+                sendButton3.disabled = true;
                 break;
             case STATE_CONNECTED:
                 status.innerHTML = "WebSockHop is initialized and connected.";
                 switchButton.innerHTML = "Disconnect";
                 sendButton.disabled = false;
                 sendButton2.disabled = false;
+                sendButton3.disabled = false;
                 break;
             case STATE_WAITING_TO_RETRY:
                 status.innerHTML = "WebSockHop is waiting to reconnect ...";
                 switchButton.innerHTML = "Abort reconnect";
                 sendButton.disabled = true;
                 sendButton2.disabled = true;
+                sendButton3.disabled = true;
                 break;
             }
 
