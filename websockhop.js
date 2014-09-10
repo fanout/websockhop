@@ -55,6 +55,20 @@
         }
     }
 
+    // Browser workaround for FireFox, prevent Esc from canceling
+    (function() {
+        var body = window.document.body;
+        if (body.addEventListener) {
+            // If addEventListener is not there then this is IE, so
+            // we don't have to worry about it.
+            body.addEventListener("keydown", function(e) {
+                if (e.keyCode == 27) {
+                    e.preventDefault();
+                }
+            }, false);
+        }
+    })();
+
     var copyArray = function (array) {
         var args = Array.prototype.slice.call(arguments, 1);
         return Array.prototype.slice.apply(array, args);
