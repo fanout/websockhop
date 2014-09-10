@@ -402,8 +402,10 @@
                     _this._clearPingTimers();
                 };
                 socket.onmessage = function(event) {
-                    debug.log("WebSockHop: WebSocket::onmessage { data: " + event.data + " }");
-                    _this._dispatchMessage(event.data);
+                    nextUpdate(function() {
+                        debug.log("WebSockHop: WebSocket::onmessage { data: " + event.data + " }");
+                        _this._dispatchMessage(event.data);
+                    });
                 };
             }
         });
