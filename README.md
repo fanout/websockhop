@@ -185,3 +185,42 @@ wsh.on('message', function (message) {
   }
 });
 ```
+
+Browser Conditions
+------------------
+
+Unfortunately, WebSockets are not always usable under all conditions. For example,
+attempting to use WebSockets in Safari versions before 5.1.4 with HTTP proxies will
+crash the entire browser tab.  Additionally, some mobile providers block the use of
+WebSockets.
+
+In these situations, WebSockets cannot be used, and WebSockHop is designed to
+create a partially constructed object with the isAvailable value set to false.
+
+```javascript
+var wsh = new WebSockHop('ws://localhost:3000/websocket');
+
+if (wsh.isAvailable) {
+
+    // Use WebSockHop
+    wsh.on('opened', function() {
+    });
+
+} else {
+
+    /* Fall back from WebSockets to XHR/JSONP/etc. */
+
+}
+```
+
+Currently WebSockHop will fail the creation under the following conditions:
+
+* When running on Safari versions before 5.1.4.
+* When running on mobile browsers.
+
+These conditions can be suppressed by setting the following values:
+
+```javascript
+WebSockHop.disable.oldSafari = true; // true by default, set to false to skip Safari version check
+WebSockHop.disable.mobile = true;    // true by default, set to false to skip mobile browser check
+```
