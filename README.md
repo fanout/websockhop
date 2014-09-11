@@ -194,17 +194,19 @@ attempting to use WebSockets in Safari versions before 5.1.4 with HTTP proxies w
 crash the entire browser tab.  Additionally, some mobile providers block the use of
 WebSockets.
 
-In these situations, WebSockets cannot be used, and WebSockHop is designed to
-create a partially constructed object with the isAvailable value set to false.
+In these situations, WebSockets cannot be used.  WebSockHop provides a method to
+detect when this is the case. Additionally, its constructor will throw an error
+if an instance is created.
 
 ```javascript
-var wsh = new WebSockHop('ws://localhost:3000/websocket');
 
-if (wsh.isAvailable) {
+if (WebSockHop.isAvailable()) {
 
     // Use WebSockHop
+    var wsh = new WebSockHop('ws://localhost:3000/websocket');
     wsh.on('opened', function() {
     });
+    /* etc. */
 
 } else {
 

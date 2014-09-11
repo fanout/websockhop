@@ -363,12 +363,9 @@
             throw new window.Error("Constructor called as a function");
         }
 
-        if (!WebSockHop._checkValid()) {
-            this.isAvailable = false;
-            return;
+        if (!WebSockHop.isAvailable()) {
+            throw new window.Error("WebSockHop cannot be instantiated because one or more validity checks failed.");
         }
-
-        this.isAvailable = true;
 
         this._socket = null;
         this._url = url;
@@ -394,7 +391,7 @@
         this._attemptConnect();
     };
     WebSockHop.disable = { oldSafari: true, mobile: true };
-    WebSockHop._checkValid = function() {
+    WebSockHop.isAvailable = function() {
         if (this.disable.oldSafari && isInvalidSafari) {
             return false;
         }
