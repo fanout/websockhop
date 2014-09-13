@@ -169,10 +169,6 @@
         return setTimeout(predicate, 0, ctx);
     };
 
-    var isArray = Array.isArray || function(obj) {
-        return Object.prototype.toString.call(obj) == '[object Array]';
-    };
-
     var isFunction = function(obj) {
         return Object.prototype.toString.call(obj) == '[object Function]';
     };
@@ -429,10 +425,10 @@
         if (isFunction(args) && !callback) {
             callback = args;
             args = [];
-        }
-        if (!isArray(args)) {
+        } else {
             args = [args];
         }
+
         debug.log("WebSockHop: " + event + " event start");
         this._events.trigger(event, args, function () {
             debug.log("WebSockHop: " + event + " event end");
