@@ -1,5 +1,5 @@
 /**
- * WebSockHop JavaScript Library v0.1.0
+ * WebSockHop JavaScript Library v1.0.0
  * Copyright 2014 Fanout, Inc.
  * Released under the MIT license (see COPYING file in source distribution)
  */

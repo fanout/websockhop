@@ -1,5 +1,5 @@
 NAME = websockhop
-VERSION = 0.1.0
+VERSION = 1.0.0
 
 all: dist
 
