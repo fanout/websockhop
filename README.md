@@ -3,7 +3,7 @@ WebSockHop
 Author: Katsuyuki Ohmuro <harmony7@pex2.jp>  
 Mailing List: http://lists.fanout.io/listinfo.cgi/fanout-users-fanout.io
 
-WebSockHop is a convenience library for WebSocket clients that provides automatic reconnect, periodic pinging, and request/response interactions. This is the kind of code that everyone using WebSockets needs, isolated into a reusable library. Multi-transport libraries like Socket.io, SockJS, Primus, etc tend to provide these kinds of facilities already, but WebSockHop is smaller and designed for native WebSockets only. The name comes from "sock hop", a type of dance.
+WebSockHop is a convenience library for WebSocket clients that provides automatic reconnect, periodic pinging, and request/response interactions. This is the kind of code that everyone using WebSockets needs, isolated into a reusable library. There is no special server-side component. WebSockHop is a client utility only and can communicate with any WebSocket server. The name comes from "sock hop", a type of dance.
 
 The project is inspired by https://github.com/joewalnes/reconnecting-websocket and taken further.
 
@@ -23,6 +23,7 @@ Features
   * Automatic reconnect. WebSockHop tries its best to maintain a connection. If it fails to connect or gets disconnected, it will retry connecting on an interval, with exponentially increasing delays between attempts.
   * Request/response interactions. In addition to simple sending and receiving of messages, WebSockHop lets you send messages for the purpose of making requests, and have reply messages matched to the requests. The serialization and matching policy of replies to requests is defined in a message formatter class. Two formatters are provided: StringFormatter and JsonFormatter.
   * Periodic pinging. WebSockHop can periodically send pings to the server, and fail the connection if a pong is not received after a timeout. This helps keep the connection fresh and resilient to network failures. How WebSockHop should send a ping is defined by the message formatter class or must be specified in the application.
+  * Browser workarounds. This library includes consideration for the various issues Arnout Kazemier discusses in his "WebSuckets" presentation. https://speakerdeck.com/3rdeden/websuckets
 
 Usage
 -----
@@ -199,19 +200,12 @@ detect when this is the case. Additionally, its constructor will throw an error
 if an instance is created.
 
 ```javascript
-
 if (WebSockHop.isAvailable()) {
-
     // Use WebSockHop
     var wsh = new WebSockHop('ws://localhost:3000/websocket');
-    wsh.on('opened', function() {
-    });
-    /* etc. */
-
+    ...
 } else {
-
-    /* Fall back from WebSockets to XHR/JSONP/etc. */
-
+    // Fall back from WebSockets to XHR/JSONP/etc.
 }
 ```
 
@@ -223,6 +217,9 @@ Currently WebSockHop will fail the creation under the following conditions:
 These conditions can be suppressed by setting the following values:
 
 ```javascript
-WebSockHop.disable.oldSafari = true; // true by default, set to false to skip Safari version check
-WebSockHop.disable.mobile = true;    // true by default, set to false to skip mobile browser check
+// true by default, set to false to skip Safari version check
+WebSockHop.disable.oldSafari = false;
+
+// true by default, set to false to skip mobile browser check
+WebSockHop.disable.mobile = false;
 ```
