@@ -212,13 +212,6 @@
 
             case STATE_WAITING_TO_OPEN:
             case STATE_WAITING_TO_RETRY:
-
-                console.log("echo: calling ws.abort()");
-                ws.abort();
-                ws = null;
-                state = STATE_NO_SOCKET;
-                break;
-
             case STATE_WAITING_TO_CONNECT:
             case STATE_CONNECTED:
 

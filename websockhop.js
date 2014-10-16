@@ -505,7 +505,8 @@
     };
     WebSockHop.prototype._raiseErrorEvent = function(isClosing) {
         var _this = this;
-        this._raiseEvent("error", !isClosing, function() {
+        var willRetry = !isClosing;
+        this._raiseEvent("error", willRetry, function() {
             _this._socket = null;
             if (_this.formatter != null) {
                 var pendingRequestIds = _this.formatter.getPendingHandlerIds();
@@ -516,7 +517,7 @@
                     }
                 }
             }
-            if (!isClosing) {
+            if (willRetry) {
                 _this._attemptConnect();
             }
         });
@@ -573,11 +574,16 @@
         }
     };
     WebSockHop.prototype.close = function() {
+        var _this = this;
         if (this._socket) {
             this._closing = true;
             this._socket.close();
         } else {
-            debug.log("WebSockHop: close() called on non-live socket.  Did you mean to call abort() ?");
+            this._abortConnect();
+            this._clearPingTimers();
+            nextUpdate(function() {
+                _this._raiseErrorEvent(true);
+            });
         }
     };
     WebSockHop.prototype.abort = function () {
