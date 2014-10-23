@@ -1,5 +1,5 @@
 /**
- * WebSockHop JavaScript Library v1.0.0
+ * WebSockHop JavaScript Library v1.0.1
  * Copyright 2014 Fanout, Inc.
  * Released under the MIT license (see COPYING file in source distribution)
  */
@@ -56,7 +56,7 @@
     }
 
     // Browser workaround for FireFox, prevent Esc from canceling
-    (function() {
+    window.setTimeout(function() {
         var body = window.document.body;
         if (body.addEventListener) {
             // If addEventListener is not there then this is IE, so
@@ -67,7 +67,7 @@
                 }
             }, false);
         }
-    })();
+    }, 0);
 
     // UserAgent detection, borrowed from jQuery migrate
     // https://github.com/jquery/jquery-migrate
