@@ -1,7 +1,7 @@
 WebSockHop
 ==========
 Author: Katsuyuki Ohmuro <harmony7@pex2.jp>  
-Mailing List: http://lists.fanout.io/listinfo.cgi/fanout-users-fanout.io
+Mailing List: http://lists.fanout.io/mailman/listinfo/fanout-users
 
 WebSockHop is a convenience library for WebSocket clients that provides automatic reconnect, periodic pinging, and request/response interactions. This is the kind of core functionality that every WebSocket application needs, isolated into a reusable library. The name comes from "sock hop", a type of dance.
 
