@@ -1,6 +1,6 @@
 /**
- * WebSockHop JavaScript Library v1.0.1
- * Copyright 2014 Fanout, Inc.
+ * WebSockHop JavaScript Library v1.0.2
+ * Copyright 2016 Fanout, Inc.
  * Released under the MIT license (see COPYING file in source distribution)
  */
 
@@ -108,6 +108,10 @@
     })();
 
     // WebSockets unavailable under certain conditions
+
+    var isWebSocketUnavailable = (function() {
+        return !("WebSocket" in window);
+    })();
 
     var isInvalidSafari = (function() {
         return (
@@ -392,6 +396,10 @@
     };
     WebSockHop.disable = { oldSafari: true, mobile: true };
     WebSockHop.isAvailable = function() {
+        if (isWebSocketUnavailable) {
+            return false;
+        }
+        
         if (this.disable.oldSafari && isInvalidSafari) {
             return false;
         }

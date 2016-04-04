@@ -15,7 +15,7 @@ WebSockHop is offered under the MIT license. See the COPYING file.
 Dependencies
 ------------
 
-  * json2.js
+  None
 
 Features
 --------
@@ -211,6 +211,7 @@ if (WebSockHop.isAvailable()) {
 
 Currently WebSockHop will fail the creation under the following conditions:
 
+* The browser is very old and does not support WebSockets (e.g., IE < 10)
 * When running on Safari versions before 5.1.4.
 * When running on mobile browsers.
 
