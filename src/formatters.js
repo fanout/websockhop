@@ -1,10 +1,4 @@
 export class MessageFormatterBase {
-    constructor() {
-        this.pingMessage = null;
-        this.pingRequest = null;
-        this.handlePing = null;
-        this.handlePong = null;
-    }
     toMessage(obj) {
         throw "Not Implemented";
     }
@@ -21,6 +15,12 @@ export class MessageFormatterBase {
         return null;
     }
 }
+Object.assign(MessageFormatterBase.prototype, {
+    pingMessage: null,
+    pingRequest: null,
+    handlePing: null,
+    handlePong: null
+});
 
 export class StringFormatter extends MessageFormatterBase {
     toMessage(obj) {
