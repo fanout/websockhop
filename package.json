@@ -1,0 +1,45 @@
+{
+  "name": "websockhop",
+  "version": "0.1.0",
+  "description": "Convenience library for WebSocket that provides automatic reconnect, periodic pinging, and request/response interactions",
+  "main": "lib/index.js",
+  "files": [
+    "dist",
+    "lib",
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fanout/websockhop.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fanout/websockhop/issues"
+  },
+  "keywords": [
+    "websocket",
+    "engine.io",
+    "realtime"
+  ],
+  "author": "fanout",
+  "license": "MIT",
+  "scripts": {
+    "clean": "rimraf lib dist",
+    "build": "npm run build:commonjs && npm run build:umd && npm run build:umd:min",
+    "build:commonjs": "cross-env BABEL_ENV=commonjs babel src --out-dir lib --presets es2015",
+    "build:umd": "mkdir -p dist && cross-env BABEL_ENV=browserify NODE_ENV=development browserify src/browser.js -s WebSockHop -o dist/websockhop.js -t [ babelify --presets [ es2015 ] ]",
+    "build:umd:min": "mkdir -p dist && cross-env BABEL_ENV=browserify NODE_ENV=production browserify src/browser.js -s WebSockHop -o dist/websockhop.min.js -t [ babelify --presets [ es2015 ] ] -p [ minifyify --no-map ]",
+    "check:src": "npm run lint",
+    "lint": "eslint src",
+    "prepublish": "npm run clean && npm run check:src && npm run build"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.9.0",
+    "babel-preset-es2015": "^6.9.0",
+    "babelify": "^7.3.0",
+    "browserify": "^13.0.1",
+    "cross-env": "^1.0.7",
+    "eslint": "^2.10.2",
+    "minifyify": "^7.3.3",
+    "rimraf": "^2.5.2"
+  }
+}
