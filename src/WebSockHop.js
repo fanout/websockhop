@@ -12,7 +12,7 @@ function defaultCreateSocket(url, protocol) {
 class WebSockHop {
     constructor(url, protocol, opts) {
         if (!WebSockHop.isAvailable()) {
-            throw new window.Error("WebSockHop cannot be instantiated because one or more validity checks failed.");
+            throw "WebSockHop cannot be instantiated because one or more validity checks failed.";
         }
 
         if (typeof protocol === "string" || protocol instanceof String) {
@@ -57,20 +57,20 @@ class WebSockHop {
             }
             this._tries = this._tries + 1;
 
-            this._timer = setTimeout(() => {
+            this._timer = setTimeout(async () => {
                 this._timer = null;
-                this._start();
+                await this._start();
             }, delay);
         }
     }
     _abortConnect() {
         if (this._timer) {
-            window.clearTimeout(this._timer);
+            clearTimeout(this._timer);
             this._timer = null;
         }
         this._aborted = true;
     }
-    _raiseEvent(event, args, callback) {
+    async _raiseEvent(event, args) {
         if (isFunction(args) && !callback) {
             callback = args;
             args = [];
@@ -78,93 +78,81 @@ class WebSockHop {
         if (!Array.isArray(args)) {
             args = [args];
         }
+
         console.log(`WebSockHop: ${event} event start`);
-        this._events.trigger(event, args, () => {
-            console.log(`WebSockHop: ${event} event end`);
-            if (callback) {
-                callback();
-            }
-        });
+        await this._events.trigger(event, args);
+        console.log(`WebSockHop: ${event} event end`);
     }
-    _start() {
+    async _start() {
         if (this.formatter == null) {
             throw "A message formatter must be specified before using WebSockHop.";
         }
-        this._raiseEvent("opening", () => {
-            if (!this._aborted) {
-                const { createSocket = defaultCreateSocket } = this._opts;
-                this._socket = createSocket(this._url, this._protocol);
-                let connectionTimeout = null;
-                if (this.connectionTimeoutMsecs) {
-                    connectionTimeout = setTimeout(() => {
-                        console.log("WebSockHop: Connection timeout exceeded.");
-                        this._raiseErrorEvent(false);
-                    }, this.connectionTimeoutMsecs);
-                    console.log(`WebSockHop: Setting connection timeout (${this.connectionTimeoutMsecs} msecs).`);
+        await this._raiseEvent("opening");
+        if (!this._aborted) {
+            const { createSocket = defaultCreateSocket } = this._opts;
+            this._socket = createSocket(this._url, this._protocol);
+            let connectionTimeout = null;
+            if (this.connectionTimeoutMsecs) {
+                connectionTimeout = setTimeout(() => {
+                    console.log("WebSockHop: Connection timeout exceeded.");
+                    this._raiseErrorEvent(false);
+                }, this.connectionTimeoutMsecs);
+                console.log(`WebSockHop: Setting connection timeout (${this.connectionTimeoutMsecs} msecs).`);
+            }
+            const clearConnectionTimeout = () => {
+                if (connectionTimeout != null) {
+                    console.log("WebSockHop: Clearing connection timeout.");
+                    clearTimeout(connectionTimeout);
+                    connectionTimeout = null;
                 }
-                var clearConnectionTimeout = () => {
-                    if (connectionTimeout != null) {
-                        console.log("WebSockHop: Clearing connection timeout.");
-                        window.clearTimeout(connectionTimeout);
-                        connectionTimeout = null;
-                    }
-                };
-                this._socket.onopen = (event) => {
-                    console.log("WebSockHop: WebSocket::onopen");
-                    clearConnectionTimeout();
-                    this._tries = 0;
-                    this._raiseEvent("opened");
-                    this._resetPingTimer();
-                };
-                this._socket.onclose = ({wasClean, code}) => {
-                    console.log(`WebSockHop: WebSocket::onclose { wasClean: ${wasClean ? "true" : "false"}, code: ${code} }`);
-                    clearConnectionTimeout();
-                    const closing = this._closing;
+            };
+            this._socket.onopen = async () => {
+                console.log("WebSockHop: WebSocket::onopen");
+                clearConnectionTimeout();
+                this._tries = 0;
+                await this._raiseEvent("opened");
+                this._resetPingTimer();
+            };
+            this._socket.onclose = ({wasClean, code}) => {
+                console.log(`WebSockHop: WebSocket::onclose { wasClean: ${wasClean ? "true" : "false"}, code: ${code} }`);
+                clearConnectionTimeout();
+                const closing = this._closing;
 
-                    if (wasClean) {
-                        nextUpdate(() => {
-                            this._raiseEvent("closed", () => {
-                                this._socket = null;
-                            });
-                        });
-                    } else {
-                        nextUpdate(() => {
-                            this._raiseErrorEvent(closing);
-                        });
-                    }
-                    this._clearPingTimers();
-                };
-                this._socket.onmessage = ({data}) => {
-                    var onMessage = () => {
-                        console.log(`WebSockHop: WebSocket::onmessage { data: ${data} }`);
-                        this._dispatchMessage(data);
-                    };
-                    if (isMobile) {
-                        nextUpdate(onMessage);
-                    } else {
-                        onMessage();
-                    }
-                };
-            }
-        });
+                if (wasClean) {
+                    nextUpdate(async () => {
+                        await this._raiseEvent("closed");
+                        this._socket = null;
+                    });
+                } else {
+                    nextUpdate(() => {
+                        this._raiseErrorEvent(closing);
+                    });
+                }
+                this._clearPingTimers();
+            };
+            this._socket.onmessage = ({data}) => {
+                nextUpdate(() => {
+                    console.log(`WebSockHop: WebSocket::onmessage { data: ${data} }`);
+                    this._dispatchMessage(data);
+                });
+            };
+        }
     }
-    _raiseErrorEvent(isClosing) {
+    async _raiseErrorEvent(isClosing) {
         var willRetry = !isClosing;
-        this._raiseEvent("error", willRetry, () => {
-            this._socket = null;
-            if (this.formatter != null) {
-                var pendingRequestIds = this.formatter.getPendingHandlerIds();
-                if (pendingRequestIds != null) {
-                    for (var i = 0; i < pendingRequestIds.length; i++) {
-                        var requestId = pendingRequestIds[i];
-                        this._dispatchErrorMessage(requestId, {type: ErrorEnumValue.Disconnect});
-                    }
+        await this._raiseEvent("error", willRetry);
+        this._socket = null;
+        if (this.formatter != null) {
+            var pendingRequestIds = this.formatter.getPendingHandlerIds();
+            if (Array.isArray(pendingRequestIds)) {
+                for (const requestId of pendingRequestIds) {
+                    await this._dispatchErrorMessage(requestId, {type: ErrorEnumValue.Disconnect});
                 }
             }
-            if (willRetry) {
-                this._attemptConnect();
-            }
-        });
+        }
+        if (willRetry) {
+            this._attemptConnect();
+        }
     }
     _clearPingTimers() {
         console.log("WebSockHop: clearing ping timers.");
@@ -243,12 +231,8 @@ class WebSockHop {
     on(type, handler) {
         this._events.on(type, handler);
     }
-    off(type) {
-        if (arguments.length > 1) {
-            this._events.off(type, arguments[1]);
-        } else {
-            this._events.off(type);
-        }
+    off(type, ...args) {
+        this._events.off(type, ...args);
     }
     request(obj, callback, errorCallback, timeoutMsecs, disconnectOnTimeout) {
         const request = {
@@ -290,11 +274,11 @@ class WebSockHop {
 
         const { obj: { id } } = request;
         request.clearTimeout();
-        request.requestTimeoutTimer = setTimeout(() => {
+        request.requestTimeoutTimer = setTimeout(async () => {
             console.log(`WebSockHop: timeout exceeded [${id}]`);
-            this._dispatchErrorMessage(id, {type: ErrorEnumValue.Timeout});
+            await this._dispatchErrorMessage(id, {type: ErrorEnumValue.Timeout});
             if (request.requestDisconnectOnTimeout) {
-                this._raiseErrorEvent(false);
+                await this._raiseErrorEvent(false);
             }
         }, request.requestTimeoutMsecs);
 
@@ -326,7 +310,7 @@ class WebSockHop {
         }, pingMessage.messageTimeoutMsecs);
 
     }
-    _dispatchMessage(message) {
+    async _dispatchMessage(message) {
         const { formatter } = this;
         
         let isHandled = false;
@@ -344,7 +328,7 @@ class WebSockHop {
                 // See if this object is a response to a request().
                 var handler = isObject(obj) ? formatter.getHandlerForResponse(obj) : null;
                 if (handler != null) {
-                    handler.callback(obj);
+                    await Promise.resolve(handler.callback(obj));
                     if (this._lastSentPing != null &&
                         this._lastSentPing.obj != null &&
                         this._lastSentPing.obj.id == this._lastReceivedPongId
@@ -367,8 +351,8 @@ class WebSockHop {
 
                 // Check for message-based ping response
 
-                if (this.formatter.handlePong != null) {
-                    isPong = this.formatter.handlePong(obj);
+                if (isFunction(this.formatter.handlePong)) {
+                    isPong = await Promise.resolve(this.formatter.handlePong(obj));
                     if (isPong) {
                         isHandled = true;
                     }
@@ -399,8 +383,8 @@ class WebSockHop {
                 }
                 this._resetPingTimer();
             }
-            if (!isHandled && this.formatter.handlePing != null) {
-                var isPing = this.formatter.handlePing(obj);
+            if (!isHandled && isFunction(this.formatter.handlePing)) {
+                var isPing = await Promise.resolve(this.formatter.handlePing(obj));
                 if (isPing) {
                     console.log("WebSockHop: Received PING message, handled.");
                     isHandled = true;
@@ -408,14 +392,14 @@ class WebSockHop {
             }
         }
         if (!isHandled) {
-            this._raiseEvent("message", obj);
+            await this._raiseEvent("message", obj);
         }
     }
-    _dispatchErrorMessage(id, error) {
+    async _dispatchErrorMessage(id, error) {
         if (this.formatter != null) {
             const handler = this.formatter.getHandlerForResponse({id});
             if (handler != null) {
-                handler.errorCallback(error);
+                await Promise.resolve(handler.errorCallback(error));
             }
         }
     }

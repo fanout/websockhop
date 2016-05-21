@@ -116,6 +116,11 @@
 <script>
     (function() {
 
+        // 0 - no async
+        // 1 - use this.async() for async
+        // 2 - use promises for async
+        var testAsyncMode = 2;
+
         var escapeHTML = function (s) {
             return s.replace(/&/g, '&amp;')
                     .replace(/"/g, '&quot;')
@@ -156,25 +161,67 @@
                 ws.pingResponseTimeoutMsecs = 10000; // Change this to experiment with ping response timeout
                 ws.on('opening', function() {
                     console.log('echo: socket opening');
-                    // It's possible to do something asynchronous here
-                    // by calling this.async(). This makes the caller
-                    // wait for you to call next() before completing the event.
-                    // This demonstrates this feature by simulating an async
-                    // action with a 1000 ms delay.
-                    var next = this.async();
-                    console.log('echo: waiting 1000 ms');
-                    setTimeout(function() {
-                        if (state == STATE_WAITING_TO_OPEN) {
-                            state = STATE_WAITING_TO_CONNECT;
-                            console.log('echo: finished waiting 1000 ms');
+
+                    if (testAsyncMode === 0) {
+
+                        // Synchronous handling
+                        state = STATE_WAITING_TO_CONNECT;
+                        updateUi();
+
+                        // It's possible to cancel further processing (additional event handlers for
+                        // the 'on' event) by returning false.
+
+                    } else if (testAsyncMode === 1) {
+
+                        // It's possible to do something asynchronous here
+                        // by calling this.async(). This makes the caller
+                        // wait for you to call next() before completing the event.
+                        // This demonstrates this feature by simulating an async
+                        // action with a 5000 ms delay.
+                        var next = this.async();
+                        console.log('echo: waiting 5000 ms');
+                        setTimeout(function() {
+                            if (state == STATE_WAITING_TO_OPEN) {
+                                state = STATE_WAITING_TO_CONNECT;
+                                console.log('echo: finished waiting 5000 ms');
+                                updateUi();
+                            }
+                            // It's possible to stop further processing (additional event handlers for
+                            // the 'on' event) by passing false to the next function.
+                            next();
+                        }, 5000);
+
+                        state = STATE_WAITING_TO_OPEN;
+
+                        updateUi();
+
+                    } else if (testAsyncMode === 2) {
+
+                        return new Promise(function (resolve, reject) {
+                            // It's possible to do something asynchronous here
+                            // by returning a standard promise. This makes the caller
+                            // wait for the promise to resolve before completing the
+                            // event.
+                            // This demonstrates this feature by simulating an async
+                            // action with a 5000 ms delay.
+                            console.log('echo: waiting 5000ms');
+                            setTimeout(function() {
+                                if (state == STATE_WAITING_TO_OPEN) {
+                                    state = STATE_WAITING_TO_CONNECT;
+                                    console.log('echo: finished waiting 5000 ms');
+                                    updateUi();
+                                }
+                                // It's possible to cancel further processing (additional event handlers for
+                                // the 'on' event) by resolving the promise as false.
+                                resolve();
+                            }, 5000);
+
+                            state = STATE_WAITING_TO_OPEN;
+
                             updateUi();
-                        }
-                        next();
-                    }, 1000);
+                        });
 
-                    state = STATE_WAITING_TO_OPEN;
-
-                    updateUi();
+                    }
                 });
 
                 ws.on('opened', function() {

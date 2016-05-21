@@ -1,5 +1,4 @@
 import { removeFromArray } from "./utils";
-import { asyncfor } from "./asyncfor";
 
 class Events {
     constructor(ctx) {
@@ -13,48 +12,58 @@ class Events {
         return this._events[type];
     }
     on(type, handler) {
-        var handlers = this._getHandlersForType(type);
+        const handlers = this._getHandlersForType(type);
         handlers.push(handler);
     }
     off(type, handler) {
         if (handler != null) {
-            var handlers = this._getHandlersForType(type);
+            const handlers = this._getHandlersForType(type);
             removeFromArray(handlers, handler);
         } else {
             delete this._events[type];
         }
     }
-    trigger(type, args, callback) {
+    async trigger(type, ...args) {
 
         const handlers = this._getHandlersForType(type).slice();
-        const n = handlers.length;
 
-        // The following is the async way to write:
-        // for (var i = 0; i < n; i = i + 1) {
-        //     var handler = handlers[i];
-        //     handler.apply(ctx, args);
-        // }
+        for (const handler of handlers) {
 
-        let i;
-        const loop = asyncfor(
-            () => i = 0,
-            () => i < n,
-            () => i = i + 1
-        );
-        loop.loopBody = (async) => {
-            const handler = handlers[i];
-            this._ctx.async = () => {
-                delete this._ctx.async;
-                return async();
-            };
-            handler.apply(this._ctx, args);
-        };
-        loop.runLoop(() => {
-            if (callback) {
-                callback();
+            const result = await new Promise(async (resolve, reject) => {
+                try {
+
+                    let isAsync = false;
+
+                    this._ctx.async = () => {
+                        isAsync = true;
+                        return (continueLoop = true) => {
+                            resolve(continueLoop);
+                        };
+                    };
+
+                    const handlerResult = await Promise.resolve(handler.call(this._ctx, ...args));
+
+                    delete this._ctx.async;
+                    
+                    if (isAsync) {
+                        // We don't resolve the promise now, but wait til the
+                        // thing above is called.
+                    } else {
+                        resolve(handlerResult);
+                    }
+
+                } catch(ex) {
+                    
+                    reject(ex);
+                    
+                }
+            });
+            
+            if (typeof result !== "undefined" && !result) {
+                break;
             }
-        });
-
+            
+        }
     }
 }
 
