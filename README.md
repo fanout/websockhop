@@ -29,8 +29,6 @@ Here's an example of sending a message to websocket.org's echo service, receivin
 ```javascript
 var wsh = new WebSockHop('ws://echo.websocket.org');
 
-wsh.formatter = new WebSockHop.StringFormatter();
-
 console.log('connecting...');
 
 wsh.on('opened', function () {
@@ -54,6 +52,14 @@ wsh.on('closed', function() {
 ```
 
 WebSockHop tries to keep the underlying WebSocket connection open until the application explicitly closes it. If there is a failure connecting to the server, or if an existing connection is unexpectedly disconnected, then WebSockHop will automatically attempt to reconnect. Anytime the connection is successfully established or reestablished, the "opened" event will be triggered. The above code will only finish once the entire transaction of connect->send->receive->close has executed successfully.
+
+Formatters
+----------
+
+Formatters are a way to handle the data being sent and received. They convert the messages into usable data formats for your application.
+They may also be used for request tracking and ping handling. See the following sections and formatters.js in the source for more details.
+
+If no formatter is specified, then StringFormatter is automatically constructed and used.
 
 Requests
 --------
