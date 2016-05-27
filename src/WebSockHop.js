@@ -148,11 +148,11 @@ class WebSockHop {
         }
     }
     async _raiseErrorEvent(isClosing) {
-        var willRetry = !isClosing;
+        const willRetry = !isClosing;
         await this._raiseEvent("error", willRetry);
         this.socket = null;
         if (this.formatter != null) {
-            var pendingRequestIds = this.formatter.getPendingHandlerIds();
+            const pendingRequestIds = this.formatter.getPendingHandlerIds();
             if (Array.isArray(pendingRequestIds)) {
                 for (const requestId of pendingRequestIds) {
                     await this._dispatchErrorMessage(requestId, {type: ErrorEnumValue.Disconnect});
@@ -179,11 +179,8 @@ class WebSockHop {
         console.log(`WebSockHop: attempting ping in ${this.pingIntervalMsecs} ms`);
     }
     sendPingRequest() {
-        const { formatter } = this;
-
-        if (formatter != null) {
-            const { pingResponseTimeoutMsecs } = this;
-            const { pingRequest, pingMessage } = formatter;
+        if (this.formatter != null) {
+            const { pingRequest, pingMessage } = this.formatter;
 
             if (isObject(pingRequest)) {
                 const ping = Object.assign({}, pingRequest);
@@ -193,11 +190,11 @@ class WebSockHop {
                     if (error.type == ErrorEnumValue.Timeout) {
                         console.log("WebSockHop: no ping response, handling as disconnected");
                     }
-                }, pingResponseTimeoutMsecs, true);
-                console.log(`WebSockHop: > PING [${ping.id}], requiring response in ${pingResponseTimeoutMsecs} ms`);
+                }, this.pingResponseTimeoutMsecs, true);
+                console.log(`WebSockHop: > PING [${ping.id}], requiring response in ${this.pingResponseTimeoutMsecs} ms`);
             } else if (pingMessage != null) {
-                this._lastSentPing = this._sendPingMessage(pingMessage, pingResponseTimeoutMsecs);
-                console.log(`WebSockHop: > PING, requiring response in ${pingResponseTimeoutMsecs} ms`);
+                this._lastSentPing = this._sendPingMessage(pingMessage, this.pingResponseTimeoutMsecs);
+                console.log(`WebSockHop: > PING, requiring response in ${this.pingResponseTimeoutMsecs} ms`);
             } else {
                 console.log("WebSockHop: No ping set up for message formatter, not performing ping.");
             }
@@ -321,22 +318,20 @@ class WebSockHop {
 
     }
     async _dispatchMessage(message) {
-        const { formatter } = this;
-        
         let isHandled = false;
-        const obj = formatter.fromMessage(message);
-        if (formatter != null) {
+        const obj = this.formatter.fromMessage(message);
+        if (this.formatter != null) {
             let isPong = false;
             let pongId = 0;
             
-            const { pingRequest, pingMessage } = formatter;
+            const { pingRequest, pingMessage } = this.formatter;
 
             if (isObject(pingRequest)) {
 
                 // Check for request-based ping response
 
                 // See if this object is a response to a request().
-                var handler = isObject(obj) ? formatter.getHandlerForResponse(obj) : null;
+                const handler = isObject(obj) ? this.formatter.getHandlerForResponse(obj) : null;
                 if (handler != null) {
                     await Promise.resolve(handler.callback(obj));
                     if (this._lastSentPing != null &&
@@ -394,7 +389,7 @@ class WebSockHop {
                 this._resetPingTimer();
             }
             if (!isHandled && isFunction(this.formatter.handlePing)) {
-                var isPing = await Promise.resolve(this.formatter.handlePing(obj));
+                const isPing = await Promise.resolve(this.formatter.handlePing(obj));
                 if (isPing) {
                     console.log("WebSockHop: Received PING message, handled.");
                     isHandled = true;
