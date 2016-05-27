@@ -16,9 +16,12 @@
     "url": "https://github.com/fanout/websockhop/issues"
   },
   "keywords": [
+    "realtime",
+    "real-time",
     "websocket",
-    "engine.io",
-    "realtime"
+    "websockets",
+    "socket",
+    "sockets"
   ],
   "author": "fanout",
   "license": "MIT",
