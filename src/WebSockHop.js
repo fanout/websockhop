@@ -86,17 +86,9 @@ class WebSockHop {
         }
         this._aborted = true;
     }
-    async _raiseEvent(event, args) {
-        if (isFunction(args) && !callback) {
-            callback = args;
-            args = [];
-        }
-        if (!Array.isArray(args)) {
-            args = [args];
-        }
-
+    async _raiseEvent(event, ...args) {
         console.log(`WebSockHop: ${event} event start`);
-        await this._events.trigger(event, args);
+        await this._events.trigger(event, ...args);
         console.log(`WebSockHop: ${event} event end`);
     }
     async _start() {
