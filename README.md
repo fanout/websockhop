@@ -151,7 +151,7 @@ Here's how to connect to a Meteor server using the DDP protocol and SockJS. The 
 var wsh = new WebSockHop('http://localhost:3000', {
   createSocket: function (url) {
     return new SockJS(url);
-  };
+  }
 });
 
 wsh.formatter = new WebSockHop.JsonFormatter();
