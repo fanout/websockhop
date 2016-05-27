@@ -3,7 +3,7 @@ import { isWebSocketUnavailable, isInvalidSafari, isMobile } from "./browserDete
 
 import Events from "./Events";
 import ErrorEnumValue from "./ErrorEnumValue";
-import { StringFormatter, JsonFormatter } from "./formatters";
+import { StringFormatter, JsonFormatter, MessageFormatterBase } from "./formatters";
 
 function defaultCreateSocket(url, protocols) {
     return protocols != null ? new WebSocket(url, protocols) : new WebSocket(url);
@@ -430,7 +430,8 @@ Object.assign(WebSockHop, {
     },
     ErrorEnumValue,
     StringFormatter,
-    JsonFormatter
+    JsonFormatter,
+    MessageFormatterBase
 });
 
 export default WebSockHop; 
