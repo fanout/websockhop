@@ -12,11 +12,6 @@ License
 
 WebSockHop is offered under the MIT license. See the COPYING file.
 
-Dependencies
-------------
-
-  None
-
 Features
 --------
 
