@@ -12,18 +12,60 @@ License
 
 WebSockHop is offered under the MIT license. See the COPYING file.
 
-Dependencies
-------------
-
-  None
-
 Features
 --------
 
   * Automatic reconnect. WebSockHop tries its best to maintain a connection. If it fails to connect or gets disconnected, it will retry connecting on an interval, with exponentially increasing delays between attempts.
-  * Request/response interactions. In addition to simple sending and receiving of messages, WebSockHop lets you send messages for the purpose of making requests, and have reply messages matched to the requests. The serialization and matching policy of replies to requests is defined in a message formatter class. Two formatters are provided: StringFormatter and JsonFormatter.
-  * Periodic pinging. WebSockHop can periodically send pings to the server, and fail the connection if a pong is not received after a timeout. This helps keep the connection fresh and resilient to network failures. How WebSockHop should send a ping is defined by the message formatter class or must be specified in the application.
+  * Periodic pinging. WebSockHop can periodically send pings to the server, and fail the connection if a pong is not received after a timeout. This helps keep the connection fresh and resilient to network failures.
+  * Request/response interactions. WebSockHop can optionally associate incoming and outgoing messages, useful when making requests to a server.
   * Browser workarounds. This library includes consideration for the various issues Arnout Kazemier discusses in his "WebSuckets" presentation. https://speakerdeck.com/3rdeden/websuckets
+  * Ability to substitute the underlying socket object. This can be handy if you want to use WebSockHop with SockJS or Engine.IO. Note: for Engine.IO you'll need [engine.io-as-websocket](https://github.com/fanout/engine.io-as-websocket).
+
+Installation
+------------
+
+### Browsers
+
+For use in a browser script tag, clone this repository and build it:
+
+```
+git clone https://github.com/fanout/websockhop.git
+cd websockhop
+npm install
+npm run build
+```
+
+The resulting file will be available at `dist/websockhop.js` (and `dist/websockhop.min.js` for a minified version).
+
+or get the npm package:
+
+```
+npm install websockhop
+```
+
+The file will be available at `node_modules/websockhop/dist/websockhop.js` (and `node_modules/websockhop/dist/websockhop.min.js` for a minified version).
+
+WebSockHop will become available through the `WebSockHop` global variable.
+
+### Node.js (and Browserify/Webpack/etc)
+
+Add to your project using npm:
+
+```
+npm install websockhop --save
+```
+
+And then reference WebSockHop from your code file:
+
+```javascript
+import WebSockHop from "websockhop";
+```
+
+or
+
+```javascript
+const WebSockHop = require("websockhop").default;
+```
 
 Usage
 -----
@@ -32,8 +74,6 @@ Here's an example of sending a message to websocket.org's echo service, receivin
 
 ```javascript
 var wsh = new WebSockHop('ws://echo.websocket.org');
-
-wsh.formatter = new WebSockHop.StringFormatter();
 
 console.log('connecting...');
 
@@ -58,6 +98,14 @@ wsh.on('closed', function() {
 ```
 
 WebSockHop tries to keep the underlying WebSocket connection open until the application explicitly closes it. If there is a failure connecting to the server, or if an existing connection is unexpectedly disconnected, then WebSockHop will automatically attempt to reconnect. Anytime the connection is successfully established or reestablished, the "opened" event will be triggered. The above code will only finish once the entire transaction of connect->send->receive->close has executed successfully.
+
+Formatters
+----------
+
+Formatters are a way to handle the data being sent and received. They convert the messages into usable data formats for your application.
+They may also be used for request tracking and ping handling. See the following sections and formatters.js in the source for more details.
+
+If no formatter is specified, then StringFormatter is automatically constructed and used.
 
 Requests
 --------
@@ -144,10 +192,14 @@ wsh.formatter.handlePing = function (message) {
 Examples
 --------
 
-Here's how to connect to a Meteor server using the DDP protocol. The code tries its best to maintain a subscription at all times and it uses pings to detect for unresponsive connections quickly.
+Here's how to connect to a Meteor server using the DDP protocol and SockJS. The code tries its best to maintain a subscription at all times and it uses pings to detect for unresponsive connections quickly.
 
 ```javascript
-var wsh = new WebSockHop('ws://localhost:3000/websocket');
+var wsh = new WebSockHop('http://localhost:3000', {
+  createSocket: function (url) {
+    return new SockJS(url);
+  }
+});
 
 wsh.formatter = new WebSockHop.JsonFormatter();
 
