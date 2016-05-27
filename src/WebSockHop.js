@@ -39,7 +39,7 @@ class WebSockHop {
 
         this._opts = combinedOptions;
 
-        this._socket = null;
+        this.socket = null;
         this._url = url;
         this._events = new Events(this);
         this._timer = null;
@@ -98,7 +98,7 @@ class WebSockHop {
         await this._raiseEvent("opening");
         if (!this._aborted) {
             const { createSocket = defaultCreateSocket, protocols } = this._opts;
-            this._socket = createSocket(this._url, protocols);
+            this.socket = createSocket(this._url, protocols);
             let connectionTimeout = null;
             if (this.connectionTimeoutMsecs) {
                 connectionTimeout = setTimeout(() => {
@@ -114,15 +114,15 @@ class WebSockHop {
                     connectionTimeout = null;
                 }
             };
-            this._socket.onopen = async () => {
+            this.socket.onopen = async () => {
                 console.log("WebSockHop: WebSocket::onopen");
                 clearConnectionTimeout();
-                this.protocol = this._socket.protocol;
+                this.protocol = this.socket.protocol;
                 this._tries = 0;
                 await this._raiseEvent("opened");
                 this._resetPingTimer();
             };
-            this._socket.onclose = ({wasClean, code}) => {
+            this.socket.onclose = ({wasClean, code}) => {
                 console.log(`WebSockHop: WebSocket::onclose { wasClean: ${wasClean ? "true" : "false"}, code: ${code} }`);
                 clearConnectionTimeout();
                 const closing = this._closing;
@@ -130,7 +130,7 @@ class WebSockHop {
                 if (wasClean) {
                     nextUpdate(async () => {
                         await this._raiseEvent("closed");
-                        this._socket = null;
+                        this.socket = null;
                     });
                 } else {
                     nextUpdate(() => {
@@ -139,7 +139,7 @@ class WebSockHop {
                 }
                 this._clearPingTimers();
             };
-            this._socket.onmessage = ({data}) => {
+            this.socket.onmessage = ({data}) => {
                 nextUpdate(() => {
                     console.log(`WebSockHop: WebSocket::onmessage { data: ${data} }`);
                     this._dispatchMessage(data);
@@ -150,7 +150,7 @@ class WebSockHop {
     async _raiseErrorEvent(isClosing) {
         var willRetry = !isClosing;
         await this._raiseEvent("error", willRetry);
-        this._socket = null;
+        this.socket = null;
         if (this.formatter != null) {
             var pendingRequestIds = this.formatter.getPendingHandlerIds();
             if (Array.isArray(pendingRequestIds)) {
@@ -206,15 +206,15 @@ class WebSockHop {
         }
     }
     send(obj) {
-        if (this._socket) {
+        if (this.socket) {
             const message = this.formatter.toMessage(obj);
-            this._socket.send(message);
+            this.socket.send(message);
         }
     }
     close() {
-        if (this._socket) {
+        if (this.socket) {
             this._closing = true;
-            this._socket.close();
+            this.socket.close();
         } else {
             this._abortConnect();
             this._clearPingTimers();
@@ -224,16 +224,16 @@ class WebSockHop {
         }
     }
     abort() {
-        if (this._socket) {
+        if (this.socket) {
             console.log("WebSockHop: abort() called on live socket, performing forceful shutdown.  Did you mean to call close() ?");
             this._clearPingTimers();
             this._lastSentPing = null;
             this._lastReceivedPongId = 0;
-            this._socket.onclose = null;
-            this._socket.onmessage = null;
-            this._socket.onerror = null;
-            this._socket.close();
-            this._socket = null;
+            this.socket.onclose = null;
+            this.socket.onmessage = null;
+            this.socket.onerror = null;
+            this.socket.close();
+            this.socket = null;
             this.protocol = null;
         }
         this._abortConnect();
