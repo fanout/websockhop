@@ -21,6 +21,52 @@ Features
   * Browser workarounds. This library includes consideration for the various issues Arnout Kazemier discusses in his "WebSuckets" presentation. https://speakerdeck.com/3rdeden/websuckets
   * Ability to substitute the underlying socket object. This can be handy if you want to use WebSockHop with SockJS or Engine.IO. Note: for Engine.IO you'll need [engine.io-as-websocket](https://github.com/fanout/engine.io-as-websocket).
 
+Installation
+------------
+
+### Browsers
+
+For use in a browser script tag, clone this repository and build it:
+
+```
+git clone https://github.com/fanout/websockhop.git
+cd websockhop
+npm install
+npm run build
+```
+
+The resulting file will be available at `dist/websockhop.js` (and `dist/websockhop.min.js` for a minified version).
+
+or get the npm package:
+
+```
+npm install websockhop
+```
+
+The file will be available at `node_modules/websockhop/dist/websockhop.js` (and `node_modules/websockhop/dist/websockhop.min.js` for a minified version).
+
+WebSockHop will become available through the `WebSockHop` global variable.
+
+### Node.js (and Browserify/Webpack/etc)
+
+Add to your project using npm:
+
+```
+npm install websockhop --save
+```
+
+And then reference WebSockHop from your code file:
+
+```javascript
+import WebSockHop from "websockhop";
+```
+
+or
+
+```javascript
+const WebSockHop = require("websockhop").default;
+```
+
 Usage
 -----
 
