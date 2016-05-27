@@ -93,7 +93,8 @@ class WebSockHop {
     }
     async _start() {
         if (this.formatter == null) {
-            throw "A message formatter must be specified before using WebSockHop.";
+            console.log("No message formatter had been specified, creating a StringFormatter instance as formatter.");
+            this.formatter = new StringFormatter();
         }
         await this._raiseEvent("opening");
         if (!this._aborted) {
