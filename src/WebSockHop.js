@@ -5,28 +5,42 @@ import Events from "./Events";
 import ErrorEnumValue from "./ErrorEnumValue";
 import { StringFormatter, JsonFormatter } from "./formatters";
 
-function defaultCreateSocket(url, protocol) {
-    return protocol ? new WebSocket(url, protocol) : new WebSocket(url);
+function defaultCreateSocket(url, protocols) {
+    return protocols != null ? new WebSocket(url, protocols) : new WebSocket(url);
+}
+
+function extractProtocolsFromOptions({protocol, protocols} = {}) {
+    if (Array.isArray(protocols)) {
+        return protocols;
+    }
+
+    if (typeof protocols === "string" || protocols instanceof String) {
+        return [protocols];
+    }
+
+    if (typeof protocol === "string" || protocol instanceof String) {
+        return [protocol];
+    }
+
+    return null;
 }
 
 class WebSockHop {
-    constructor(url, protocol, opts) {
+    constructor(url, opts) {
         if (!WebSockHop.isAvailable()) {
             throw "WebSockHop cannot be instantiated because one or more validity checks failed.";
         }
 
-        if (typeof protocol === "string" || protocol instanceof String) {
-            opts = opts || {};
-            opts.protocol = protocol;
-        } else if (typeof protocol === "object" && typeof opts === "undefined") {
-            opts = protocol;
-        }
+        const protocols = extractProtocolsFromOptions(opts);
 
-        this._opts = opts || {};
+        const combinedOptions = Object.assign({}, opts,
+            protocols != null ? { protocols } : null
+        );
+
+        this._opts = combinedOptions;
 
         this._socket = null;
         this._url = url;
-        this._protocol = this._opts.protocol;
         this._events = new Events(this);
         this._timer = null;
         this._tries = 0;
@@ -44,6 +58,8 @@ class WebSockHop {
 
         this.defaultRequestTimeoutMsecs = null; // Unless specified, request() calls use this value for timeout
         this.defaultDisconnectOnRequestTimeout = false; // If specified, request "timeout" events will handle as though socket was dropped
+
+        this.protocol = null; // This will eventually hold the protocol that we successfully connected with
 
         this._attemptConnect();
     }
@@ -89,8 +105,8 @@ class WebSockHop {
         }
         await this._raiseEvent("opening");
         if (!this._aborted) {
-            const { createSocket = defaultCreateSocket } = this._opts;
-            this._socket = createSocket(this._url, this._protocol);
+            const { createSocket = defaultCreateSocket, protocols } = this._opts;
+            this._socket = createSocket(this._url, protocols);
             let connectionTimeout = null;
             if (this.connectionTimeoutMsecs) {
                 connectionTimeout = setTimeout(() => {
@@ -109,6 +125,7 @@ class WebSockHop {
             this._socket.onopen = async () => {
                 console.log("WebSockHop: WebSocket::onopen");
                 clearConnectionTimeout();
+                this.protocol = this._socket.protocol;
                 this._tries = 0;
                 await this._raiseEvent("opened");
                 this._resetPingTimer();
@@ -225,6 +242,7 @@ class WebSockHop {
             this._socket.onerror = null;
             this._socket.close();
             this._socket = null;
+            this.protocol = null;
         }
         this._abortConnect();
     }
