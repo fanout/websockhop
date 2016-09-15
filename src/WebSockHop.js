@@ -6,6 +6,9 @@ import ErrorEnumValue from "./ErrorEnumValue";
 import { StringFormatter, JsonFormatter, MessageFormatterBase } from "./formatters";
 
 function defaultCreateSocket(url, protocols) {
+    if (!WebSockHop.isAvailable()) {
+        throw "WebSockHop cannot be instantiated because one or more validity checks failed.";
+    }
     return protocols != null ? new WebSocket(url, protocols) : new WebSocket(url);
 }
 
@@ -27,10 +30,6 @@ function extractProtocolsFromOptions({protocol, protocols} = {}) {
 
 class WebSockHop {
     constructor(url, opts) {
-        if (!WebSockHop.isAvailable()) {
-            throw "WebSockHop cannot be instantiated because one or more validity checks failed.";
-        }
-
         const protocols = extractProtocolsFromOptions(opts);
 
         const combinedOptions = Object.assign({}, opts,
