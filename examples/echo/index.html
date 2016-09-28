@@ -208,12 +208,13 @@
 
                 if (currentUrl == null || currentUrl === "") {
                     alert("We need an URL to connect to.");
+                    break;
                 }
 
                 ws = new WebSockHop(currentUrl, { createSocket: currentTypeInfo.createSocket });
 
                 ws.formatter = new WebSockHop.JsonFormatter();
-                ws.formatter.pingRequest = { type:'ping' };
+                ws.formatter.pingRequest = { type: 'ping' };
                 ws.pingIntervalMsecs = 60000; // Change this to experiment with ping interval
                 ws.pingResponseTimeoutMsecs = 10000; // Change this to experiment with ping response timeout
                 ws.on('opening', function() {
