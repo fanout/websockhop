@@ -409,29 +409,26 @@ class WebSockHop {
             }
         }
     }
-}
+    static isAvailable() {
+        if (isWebSocketUnavailable()) {
+            return false;
+        }
 
-Object.assign(WebSockHop, {
-    disable: { oldSafari: true, mobile: true },
-    isAvailable() {
-        if (isWebSocketUnavailable) {
+        if (this.disable.oldSafari && isInvalidSafari()) {
             return false;
         }
-    
-        if (this.disable.oldSafari && isInvalidSafari) {
+
+        if (this.disable.mobile && isMobile()) {
             return false;
         }
-    
-        if (this.disable.mobile && isMobile) {
-            return false;
-        }
-    
+
         return true;
-    },
-    ErrorEnumValue,
-    StringFormatter,
-    JsonFormatter,
-    MessageFormatterBase
-});
+    }
+}
+WebSockHop.disable = { oldSafari: true, mobile: true };
+WebSockHop.ErrorEnumValue = ErrorEnumValue;
+WebSockHop.StringFormatter = StringFormatter;
+WebSockHop.JsonFormatter = JsonFormatter;
+WebSockHop.MessageFormatterBase = MessageFormatterBase;
 
 export default WebSockHop; 
