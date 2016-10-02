@@ -28,7 +28,7 @@
   "scripts": {
     "clean": "rimraf lib dist",
     "build": "npm run build:commonjs && npm run build:umd && npm run build:umd:min",
-    "build:commonjs": "cross-env BABEL_ENV=commonjs babel src --out-dir lib --presets es2015 --plugins transform-object-rest-spread,transform-async-to-generator,transform-runtime,transform-function-bind",
+    "build:commonjs": "cross-env BABEL_ENV=commonjs babel src --out-dir lib --presets es2015 --plugins transform-async-to-generator,transform-runtime",
     "build:umd": "mkdir -p dist && cross-env BABEL_ENV=browserify NODE_ENV=development browserify src/browser.js -s WebSockHop -o dist/websockhop.js -t [ babelify --presets [ es2015 ] --plugins [ transform-async-to-generator transform-runtime ] ]",
     "build:umd:min": "mkdir -p dist && cross-env BABEL_ENV=browserify NODE_ENV=production browserify src/browser.js -s WebSockHop -o dist/websockhop.min.js -t [ babelify --presets [ es2015 ] --plugins [ transform-async-to-generator transform-runtime ] ] -p [ minifyify --no-map ]",
     "check:src": "npm run lint",
@@ -39,8 +39,6 @@
     "babel-cli": "^6.9.0",
     "babel-eslint": "^6.0.4",
     "babel-plugin-transform-async-to-generator": "^6.8.0",
-    "babel-plugin-transform-function-bind": "^6.8.0",
-    "babel-plugin-transform-object-rest-spread": "^6.8.0",
     "babel-plugin-transform-runtime": "^6.9.0",
     "babel-preset-es2015": "^6.9.0",
     "babelify": "^7.3.0",

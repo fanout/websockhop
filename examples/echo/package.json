@@ -1,9 +1,0 @@
-{
-  "name": "websockhop-echo-example",
-  "version": "0.0.1",
-  "private": true,
-  "dependencies": {
-    "websockhop": "^2.0.0",
-    "engine.io-as-websocket": "^1.0.0"
-  }
-}
