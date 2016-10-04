@@ -29,8 +29,8 @@
     "clean": "rimraf lib dist",
     "build": "npm run build:commonjs && npm run build:umd && npm run build:umd:min",
     "build:commonjs": "cross-env BABEL_ENV=commonjs babel src --out-dir lib --presets es2015 --plugins transform-object-rest-spread,transform-async-to-generator,transform-runtime,transform-function-bind",
-    "build:umd": "mkdir -p dist && cross-env BABEL_ENV=browserify NODE_ENV=development browserify src/browser.js -s WebSockHop -o dist/websockhop.js -t [ babelify --presets [ es2015 ] --plugins [ transform-async-to-generator transform-runtime ] ]",
-    "build:umd:min": "mkdir -p dist && cross-env BABEL_ENV=browserify NODE_ENV=production browserify src/browser.js -s WebSockHop -o dist/websockhop.min.js -t [ babelify --presets [ es2015 ] --plugins [ transform-async-to-generator transform-runtime ] ] -p [ minifyify --no-map ]",
+    "build:umd": "mkdir -p dist && cross-env BABEL_ENV=browserify NODE_ENV=development browserify src/browser.js -s WebSockHop -o dist/websockhop.js -t [ babelify --presets [ es2015 ] --plugins [ transform-object-rest-spread transform-async-to-generator transform-runtime transform-function-bind ] ]",
+    "build:umd:min": "mkdir -p dist && cross-env BABEL_ENV=browserify NODE_ENV=production browserify src/browser.js -s WebSockHop -o dist/websockhop.min.js -t [ babelify --presets [ es2015 ] --plugins [ transform-object-rest-spread transform-async-to-generator transform-runtime transform-function-bind ] ] -p [ minifyify --no-map ]",
     "check:src": "npm run lint",
     "lint": "eslint src",
     "prepublish": "npm run clean && npm run check:src && npm run build"
