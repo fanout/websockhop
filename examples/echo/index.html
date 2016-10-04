@@ -33,7 +33,7 @@
             <select id="socket_type">
                 <option value="websocket" selected>WebSocket</option>
                 <option value="sockjs">SockJS</option>
-                <option value="engineio">Engine.IO-as-WebSocket</option>
+                <option value="engineio">Engine.IO</option>
             </select>
         </div>
         <div class="form-group">
@@ -139,7 +139,7 @@
                 }
             },
             "engineio": {
-                label: "Engine.IO-as-WebSocket",
+                label: "Engine.IO",
                 defaultUrl: "ws://localhost:3000/echo/engine.io",
                 createSocket: function(url) {
                     return new EngineIoSocket(url);
