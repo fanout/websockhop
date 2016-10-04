@@ -28,13 +28,6 @@
     <h1>WebSockHop Echo Test</h1>
 
     <section>
-        <div>
-            This demonstration uses WebSockHop against the sample WebSocket server described at
-            <a href="http://www.websocket.org/echo.html" target="_blank">http://www.websocket.org/echo.html</a>.
-        </div>
-    </section>
-
-    <section>
         <div class="form-group">
             <label for="socket_type">Connect using</label>
             <select id="socket_type">
@@ -136,18 +129,18 @@
         var types = {
             "websocket": {
                 label: "WebSocket",
-                defaultUrl: "wss://echo.websocket.org/"
+                defaultUrl: "ws://localhost:3000/echo"
             },
             "sockjs": {
                 label: "SockJS",
-                defaultUrl: "http://localhost:9999/echo",
+                defaultUrl: "http://localhost:3000/echo/sockjs",
                 createSocket: function(url) {
                     return new SockJS(url);
                 }
             },
             "engineio": {
                 label: "Engine.IO-as-WebSocket",
-                defaultUrl: "ws://localhost:3000",
+                defaultUrl: "ws://localhost:3000/echo/engine.io",
                 createSocket: function(url) {
                     return new EngineIoSocket(url);
                 }

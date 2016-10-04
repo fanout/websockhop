@@ -4,6 +4,10 @@
   "private": true,
   "dependencies": {
     "websockhop": "^2.0.0",
-    "engine.io-as-websocket": "^1.0.0"
+    "engine.io-as-websocket": "^1.0.0",
+    "express": "^3.3.0",
+    "ws": "^1.1.0",
+    "sockjs": "^0.3.0",
+    "engine.io": "^1.6.0"
   }
 }
