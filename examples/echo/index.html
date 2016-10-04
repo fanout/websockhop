@@ -28,9 +28,17 @@
     <h1>WebSockHop Echo Test</h1>
 
     <section>
-        <div>
-            This demonstration uses WebSockHop against the sample WebSocket server described at
-            <a href="http://www.websocket.org/echo.html" target="_blank">http://www.websocket.org/echo.html</a>.
+        <div class="form-group">
+            <label for="socket_type">Connect using</label>
+            <select id="socket_type">
+                <option value="websocket" selected>WebSocket</option>
+                <option value="sockjs">SockJS</option>
+                <option value="engineio">Engine.IO</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="url">Connect to URL</label>
+            <input type="text" id="url" class="form-control" />
         </div>
     </section>
 
@@ -111,10 +119,44 @@
 
 </div>
 
-<script src="./dist/websockhop.js"></script>
+<script src="//cdn.jsdelivr.net/sockjs/1/sockjs.min.js"></script>
+<script src="./node_modules/engine.io-as-websocket/dist/engine.io-as-websocket.min.js"></script>
+<script src="./node_modules/websockhop/dist/websockhop.js"></script>
 
 <script>
     (function() {
+
+        var types = {
+            "websocket": {
+                label: "WebSocket",
+                defaultUrl: "ws://localhost:3000/echo"
+            },
+            "sockjs": {
+                label: "SockJS",
+                defaultUrl: "http://localhost:3000/echo/sockjs",
+                createSocket: function(url) {
+                    return new SockJS(url);
+                }
+            },
+            "engineio": {
+                label: "Engine.IO",
+                defaultUrl: "ws://localhost:3000/echo/engine.io",
+                createSocket: function(url) {
+                    return new EngineIoSocket(url);
+                }
+            }
+        };
+
+        var socketType = document.querySelector("#socket_type");
+        var urlField = document.querySelector("#url");
+
+        var getCurrentUrl = function() {
+            return urlField.value;
+        };
+        var getCurrentSocketTypeInfo = function() {
+            var type = socketType.value;
+            return types[type];
+        };
 
         // 0 - no async
         // 1 - use this.async() for async
@@ -153,8 +195,17 @@
             console.log("clicked " + switchButton.innerHTML);
 
             switch(state) {
-            case STATE_NO_SOCKET:
-                ws = new WebSockHop("wss://echo.websocket.org/");
+            case STATE_NO_SOCKET: {
+                var currentUrl = getCurrentUrl();
+                var currentTypeInfo = getCurrentSocketTypeInfo();
+
+                if (currentUrl == null || currentUrl === "") {
+                    alert("We need an URL to connect to.");
+                    break;
+                }
+
+                ws = new WebSockHop(currentUrl, { createSocket: currentTypeInfo.createSocket });
+
                 ws.formatter = new WebSockHop.JsonFormatter();
                 ws.formatter.pingRequest = { type: 'ping' };
                 ws.pingIntervalMsecs = 60000; // Change this to experiment with ping interval
@@ -256,6 +307,7 @@
                     addMessageToList("#echo", obj);
                 });
                 break;
+            }
 
             case STATE_WAITING_TO_OPEN:
             case STATE_WAITING_TO_RETRY:
@@ -348,6 +400,16 @@
             event.preventDefault();
         });
 
+        var updateSocketType = function(type) {
+            var socketTypeInfo = types[type];
+            urlField.value = socketTypeInfo.defaultUrl;
+        };
+
+        socketType.addEventListener("change", function(e) {
+            updateSocketType(e.target.value);
+        });
+        updateSocketType("websocket");
+
         var status = document.querySelector("#status");
         var sendButton = document.querySelector("#sendButton");
         var sendButton2 = document.querySelector("#sendButton2");
@@ -355,10 +417,15 @@
 
         var updateUi = function() {
 
+            var info = getCurrentSocketTypeInfo();
+            var url = getCurrentUrl();
+
             switch(state) {
             case STATE_NO_SOCKET:
                 status.innerHTML = "WebSockHop is not initialized.";
                 switchButton.innerHTML = "Connect";
+                socketType.disabled = false;
+                urlField.disabled = false;
                 sendButton.disabled = true;
                 sendButton2.disabled = true;
                 sendButton3.disabled = true;
@@ -366,20 +433,26 @@
             case STATE_WAITING_TO_OPEN:
                 status.innerHTML = "WebSockHop is waiting to open.";
                 switchButton.innerHTML = "Cancel";
+                socketType.disabled = true;
+                urlField.disabled = true;
                 sendButton.disabled = true;
                 sendButton2.disabled = true;
                 sendButton3.disabled = true;
                 break;
             case STATE_WAITING_TO_CONNECT:
-                status.innerHTML = "WebSockHop is initialized, now connecting ...";
+                status.innerHTML = "WebSockHop is initialized, now connecting to <code>" + url + "</code> using <strong>" + info.label + "</strong> ...";
                 switchButton.innerHTML = "Abort connect";
+                socketType.disabled = true;
+                urlField.disabled = true;
                 sendButton.disabled = true;
                 sendButton2.disabled = true;
                 sendButton3.disabled = true;
                 break;
             case STATE_CONNECTED:
-                status.innerHTML = "WebSockHop is initialized and connected.";
+                status.innerHTML = "WebSockHop is initialized and connected to <code>" + url + "</code> using <strong>" + info.label + "</strong>.";
                 switchButton.innerHTML = "Disconnect";
+                socketType.disabled = true;
+                urlField.disabled = true;
                 sendButton.disabled = false;
                 sendButton2.disabled = false;
                 sendButton3.disabled = false;
@@ -387,6 +460,8 @@
             case STATE_WAITING_TO_RETRY:
                 status.innerHTML = "WebSockHop is waiting to reconnect ...";
                 switchButton.innerHTML = "Abort reconnect";
+                socketType.disabled = true;
+                urlField.disabled = true;
                 sendButton.disabled = true;
                 sendButton2.disabled = true;
                 sendButton3.disabled = true;
