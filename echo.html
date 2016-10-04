@@ -28,9 +28,17 @@
     <h1>WebSockHop Echo Test</h1>
 
     <section>
-        <div>
-            This demonstration uses WebSockHop against the sample WebSocket server described at
-            <a href="http://www.websocket.org/echo.html" target="_blank">http://www.websocket.org/echo.html</a>.
+        <div class="form-group">
+            <label for="socket_type">Connect using</label>
+            <select id="socket_type">
+                <option value="websocket" selected>WebSocket</option>
+                <option value="sockjs">SockJS</option>
+                <option value="engineio">Engine.IO</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="url">Connect to URL</label>
+            <input type="text" id="url" class="form-control" />
         </div>
     </section>
 
@@ -115,6 +123,38 @@
 
 <script>
     (function() {
+
+        var types = {
+            "websocket": {
+                label: "WebSocket",
+                defaultUrl: "ws://localhost:3000/echo"
+            },
+            "sockjs": {
+                label: "SockJS",
+                defaultUrl: "http://localhost:3000/echo/sockjs",
+                createSocket: function(url) {
+                    return new SockJS(url);
+                }
+            },
+            "engineio": {
+                label: "Engine.IO",
+                defaultUrl: "ws://localhost:3000/echo/engine.io",
+                createSocket: function(url) {
+                    return new EngineIoSocket(url);
+                }
+            }
+        };
+
+        var socketType = document.querySelector("#socket_type");
+        var urlField = document.querySelector("#url");
+
+        var getCurrentUrl = function() {
+            return urlField.value;
+        };
+        var getCurrentSocketTypeInfo = function() {
+            var type = socketType.value;
+            return types[type];
+        };
 
         // 0 - no async
         // 1 - use this.async() for async

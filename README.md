@@ -261,7 +261,8 @@ if (WebSockHop.isAvailable()) {
 }
 ```
 
-Currently WebSockHop will fail the creation under the following conditions:
+Currently WebSockHop will fail the creation under the following conditions, unless the `createSocket` function is
+provided in the options.
 
 * The browser is very old and does not support WebSockets (e.g., IE < 10)
 * When running on Safari versions before 5.1.4.
