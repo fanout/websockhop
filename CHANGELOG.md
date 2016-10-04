@@ -1,6 +1,11 @@
 WebSockHop Changelog
 ====================
 
+v. 2.1.0 (10-03-2016)
+
+  * Moved WebSocket availability check into createSocket (#12)
+  * Added support for polyfills in echo example (#13)
+
 v. 2.0.0 (05-27-2016)
 
   * API changed, now protocols is a member of opts.
