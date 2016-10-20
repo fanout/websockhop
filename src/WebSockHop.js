@@ -86,13 +86,13 @@ class WebSockHop {
         this._aborted = true;
     }
     async _raiseEvent(event, ...args) {
-        WebSockHop.log("log", `${event} event start`);
+        WebSockHop.log("info", `${event} event start`);
         await this._events.trigger(event, ...args);
-        WebSockHop.log("log", `${event} event end`);
+        WebSockHop.log("info", `${event} event end`);
     }
     async _start() {
         if (this.formatter == null) {
-            WebSockHop.log("log", "No message formatter had been specified, creating a StringFormatter instance as formatter.");
+            WebSockHop.log("info", "No message formatter had been specified, creating a StringFormatter instance as formatter.");
             this.formatter = new StringFormatter();
         }
         await this._raiseEvent("opening");
@@ -102,20 +102,20 @@ class WebSockHop {
             let connectionTimeout = null;
             if (this.connectionTimeoutMsecs) {
                 connectionTimeout = setTimeout(() => {
-                    WebSockHop.log("log", "Connection timeout exceeded.");
+                    WebSockHop.log("warn", "Connection timeout exceeded.");
                     this._raiseErrorEvent(false);
                 }, this.connectionTimeoutMsecs);
-                WebSockHop.log("log", `Setting connection timeout (${this.connectionTimeoutMsecs} msecs).`);
+                WebSockHop.log("info", `Setting connection timeout (${this.connectionTimeoutMsecs} msecs).`);
             }
             const clearConnectionTimeout = () => {
                 if (connectionTimeout != null) {
-                    WebSockHop.log("log", "Clearing connection timeout.");
+                    WebSockHop.log("info", "Clearing connection timeout.");
                     clearTimeout(connectionTimeout);
                     connectionTimeout = null;
                 }
             };
             this.socket.onopen = async () => {
-                WebSockHop.log("log", "WebSocket::onopen");
+                WebSockHop.log("info", "WebSocket::onopen");
                 clearConnectionTimeout();
                 this.protocol = this.socket.protocol;
                 this._tries = 0;
@@ -123,7 +123,7 @@ class WebSockHop {
                 this._resetPingTimer();
             };
             this.socket.onclose = ({wasClean, code}) => {
-                WebSockHop.log("log", `WebSocket::onclose { wasClean: ${wasClean ? "true" : "false"}, code: ${code} }`);
+                WebSockHop.log("info", `WebSocket::onclose { wasClean: ${wasClean ? "true" : "false"}, code: ${code} }`);
                 clearConnectionTimeout();
                 const closing = this._closing;
 
@@ -141,7 +141,7 @@ class WebSockHop {
             };
             this.socket.onmessage = ({data}) => {
                 nextUpdate(() => {
-                    WebSockHop.log("log", `WebSocket::onmessage { data: ${data} }`);
+                    WebSockHop.log("info", `WebSocket::onmessage { data: ${data} }`);
                     this._dispatchMessage(data);
                 });
             };
@@ -164,19 +164,19 @@ class WebSockHop {
         }
     }
     _clearPingTimers() {
-        WebSockHop.log("log", "clearing ping timers.");
+        WebSockHop.log("info", "clearing ping timers.");
         if (this._pingTimer) {
             clearTimeout(this._pingTimer);
             this._pingTimer = null;
         }
     }
     _resetPingTimer() {
-        WebSockHop.log("log", "resetting ping timer.");
+        WebSockHop.log("info", "resetting ping timer.");
         this._clearPingTimers();
         this._pingTimer = setTimeout(() => {
             this.sendPingRequest();
         }, this.pingIntervalMsecs);
-        WebSockHop.log("log", `attempting ping in ${this.pingIntervalMsecs} ms`);
+        WebSockHop.log("info", `attempting ping in ${this.pingIntervalMsecs} ms`);
     }
     sendPingRequest() {
         if (this.formatter != null) {
@@ -188,18 +188,18 @@ class WebSockHop {
                     this._lastReceivedPongId = obj.id;
                 }, error => {
                     if (error.type == ErrorEnumValue.Timeout) {
-                        WebSockHop.log("log", "no ping response, handling as disconnected");
+                        WebSockHop.log("info", "no ping response, handling as disconnected");
                     }
                 }, this.pingResponseTimeoutMsecs, true);
-                WebSockHop.log("log", `> PING [${ping.id}], requiring response in ${this.pingResponseTimeoutMsecs} ms`);
+                WebSockHop.log("info", `> PING [${ping.id}], requiring response in ${this.pingResponseTimeoutMsecs} ms`);
             } else if (pingMessage != null) {
                 this._lastSentPing = this._sendPingMessage(pingMessage, this.pingResponseTimeoutMsecs);
-                WebSockHop.log("log", `> PING, requiring response in ${this.pingResponseTimeoutMsecs} ms`);
+                WebSockHop.log("info", `> PING, requiring response in ${this.pingResponseTimeoutMsecs} ms`);
             } else {
-                WebSockHop.log("log", "No ping set up for message formatter, not performing ping.");
+                WebSockHop.log("info", "No ping set up for message formatter, not performing ping.");
             }
         } else {
-            WebSockHop.log("log", "Time for ping, but no formatter selected, not performing ping.");
+            WebSockHop.log("info", "Time for ping, but no formatter selected, not performing ping.");
         }
     }
     send(obj) {
@@ -222,7 +222,7 @@ class WebSockHop {
     }
     abort() {
         if (this.socket) {
-            WebSockHop.log("log", "abort() called on live socket, performing forceful shutdown.  Did you mean to call close() ?");
+            WebSockHop.log("warn", "abort() called on live socket, performing forceful shutdown.  Did you mean to call close() ?");
             this._clearPingTimers();
             this._lastSentPing = null;
             this._lastReceivedPongId = 0;
@@ -282,7 +282,7 @@ class WebSockHop {
         const { obj: { id } } = request;
         request.clearTimeout();
         request.requestTimeoutTimer = setTimeout(async () => {
-            WebSockHop.log("log", `timeout exceeded [${id}]`);
+            WebSockHop.log("info", `timeout exceeded [${id}]`);
             await this._dispatchErrorMessage(id, {type: ErrorEnumValue.Timeout});
             if (request.requestDisconnectOnTimeout) {
                 await this._raiseErrorEvent(false);
@@ -312,7 +312,7 @@ class WebSockHop {
 
         pingMessage.clearTimeout();
         pingMessage.messageTimeoutTimer = setTimeout(() => {
-            WebSockHop.log("log", "timeout exceeded");
+            WebSockHop.log("info", "timeout exceeded");
             this._raiseErrorEvent(false);
         }, pingMessage.messageTimeoutMsecs);
 
@@ -348,7 +348,7 @@ class WebSockHop {
 
                 // If this is NOT a pong then just extend the response timer, if any
                 if (!isPong && this._lastSentPing != null) {
-                    WebSockHop.log("log", "Non-pong received during pong response period, extending delay...");
+                    WebSockHop.log("info", "Non-pong received during pong response period, extending delay...");
                     this._startRequestTimeout(this._lastSentPing);
                 }
 
@@ -374,7 +374,7 @@ class WebSockHop {
                         this._lastSentPing = null;
                     } else {
                         // If this is NOT a pong then just extend the response timer, if any
-                        WebSockHop.log("log", "Non-pong received during pong response period, extending delay...");
+                        WebSockHop.log("info", "Non-pong received during pong response period, extending delay...");
                         this._startPingMessageTimeout(this._lastSentPing);
                     }
                 }
@@ -382,16 +382,16 @@ class WebSockHop {
 
             if (isPong) {
                 if (pongId > 0) {
-                    WebSockHop.log("log", "< PONG [" + pongId + "]");
+                    WebSockHop.log("info", "< PONG [" + pongId + "]");
                 } else {
-                    WebSockHop.log("log", "< PONG");
+                    WebSockHop.log("info", "< PONG");
                 }
                 this._resetPingTimer();
             }
             if (!isHandled && isFunction(this.formatter.handlePing)) {
                 const isPing = await Promise.resolve(this.formatter.handlePing(obj));
                 if (isPing) {
-                    WebSockHop.log("log", "Received PING message, handled.");
+                    WebSockHop.log("info", "Received PING message, handled.");
                     isHandled = true;
                 }
             }
