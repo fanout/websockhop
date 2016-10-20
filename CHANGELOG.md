@@ -1,6 +1,10 @@
 WebSockHop Changelog
 ====================
 
+v. 2.2.0 (10-20-2016)
+
+  * Unified logging (#18)
+
 v. 2.1.0 (10-03-2016)
 
   * Moved WebSocket availability check into createSocket (#12)
