@@ -277,3 +277,19 @@ WebSockHop.disable.oldSafari = false;
 // true by default, set to false to skip mobile browser check
 WebSockHop.disable.mobile = false;
 ```
+
+Logging
+-------
+
+All logging coming through WebSockHop is performed through the WebSockHop.logger function, which is
+defined in a development build as
+
+```javascript
+WebSockHop.logger = function(type, message) {
+    console.log("WebSockHop: " + type + "-" + message);
+};
+```
+
+In a production (minified) build it is set to null.
+
+The consumer of the library is free to assign any function to WebSockHop.logger.
