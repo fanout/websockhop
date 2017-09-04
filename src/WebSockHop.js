@@ -150,7 +150,7 @@ class WebSockHop {
     async _raiseErrorEvent(isClosing) {
         const willRetry = !isClosing;
         await this._raiseEvent("error", willRetry);
-        this.socket = null;
+        this._clearSocket()
         if (this.formatter != null) {
             const pendingRequestIds = this.formatter.getPendingHandlerIds();
             if (Array.isArray(pendingRequestIds)) {
@@ -162,6 +162,17 @@ class WebSockHop {
         if (willRetry) {
             this._attemptConnect();
         }
+    }
+    // Clear the current this.socket and all state dependent on it.
+    _clearSocket() {
+        this._lastSentPing = null;
+        this._lastReceivedPongId = 0;
+        this.socket.onclose = () => WebSockHop.log("info", "closed old socket that had been cleared()");
+        this.socket.onmessage = null;
+        this.socket.onerror = (error) => WebSockHop.log("info", "error in old socket that had been cleared()", error);;
+        this.socket.close();
+        this.protocol = null;
+        this.socket = null;
     }
     _clearPingTimers() {
         WebSockHop.log("info", "clearing ping timers.");
@@ -426,14 +437,14 @@ class WebSockHop {
 }
 WebSockHop.logger = null;
 if (process.env.NODE_ENV === 'development') {
-    WebSockHop.logger = (type, message) => {
-        console.log(`WebSockHop: ${type} - ${message}`);
+    WebSockHop.logger = (type, ...message) => {
+        console.log(`WebSockHop: ${type} -`, ...message);
     };
 }
 
-WebSockHop.log = (type, message) => {
+WebSockHop.log = (type, ...message) => {
     if (WebSockHop.logger != null) {
-        WebSockHop.logger(type, message);
+        WebSockHop.logger(type, ...message);
     }
 };
 
