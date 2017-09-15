@@ -150,7 +150,7 @@ class WebSockHop {
     async _raiseErrorEvent(isClosing) {
         const willRetry = !isClosing;
         await this._raiseEvent("error", willRetry);
-        this._clearSocket()
+        this._clearSocket();
         if (this.formatter != null) {
             const pendingRequestIds = this.formatter.getPendingHandlerIds();
             if (Array.isArray(pendingRequestIds)) {
@@ -454,4 +454,4 @@ WebSockHop.StringFormatter = StringFormatter;
 WebSockHop.JsonFormatter = JsonFormatter;
 WebSockHop.MessageFormatterBase = MessageFormatterBase;
 
-export default WebSockHop; 
+export default WebSockHop;
