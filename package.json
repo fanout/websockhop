@@ -47,7 +47,7 @@
     "browserify": "^13.0.1",
     "cross-env": "^1.0.7",
     "eslint": "^2.10.2",
-    "exorcist": "^0.4.0",
+    "exorcist": "^2.0.0",
     "minifyify": "^7.3.3",
     "mkdirp": "^0.5.1",
     "rimraf": "^2.5.2"
