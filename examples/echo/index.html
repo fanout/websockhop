@@ -387,9 +387,11 @@
                     }
 
                     if (obj != null) {
+                        console.log("echo: creating object: " + JSON.stringify(obj));
                         addMessageToList("#sent3", obj);
-                        ws.send(obj);
-                        console.log(obj);
+                        ws.request(obj, function(requestObj) {
+                            addMessageToList("#echo3", requestObj);
+                        });
                         toSend.value = "";
                     }
                 }
