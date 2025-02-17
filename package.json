@@ -27,13 +27,12 @@
   "license": "MIT",
   "scripts": {
     "clean": "rimraf lib dist",
-    "build": "npm run build:commonjs && npm run build:umd && npm run build:umd:min",
+    "build": "npm run clean && npm run lint && npm run build:commonjs && npm run build:umd && npm run build:umd:min",
     "build:commonjs": "cross-env BABEL_ENV=commonjs babel src --out-dir lib --presets es2015 --plugins transform-object-rest-spread,transform-async-to-generator,transform-runtime,transform-function-bind",
     "build:umd": "mkdirp dist && cross-env BABEL_ENV=browserify NODE_ENV=development browserify src/browser.js -s WebSockHop -t [ babelify --presets [ es2015 ] --plugins [ transform-object-rest-spread transform-async-to-generator transform-runtime transform-function-bind transform-inline-environment-variables ] ] -d | exorcist dist/websockhop.js.map > dist/websockhop.js",
     "build:umd:min": "mkdirp dist && cross-env BABEL_ENV=browserify NODE_ENV=production browserify src/browser.js -s WebSockHop -o dist/websockhop.min.js -t [ babelify --presets [ es2015 ] --plugins [ transform-object-rest-spread transform-async-to-generator transform-runtime transform-function-bind transform-inline-environment-variables ] ] -p [ minifyify --no-map ]",
-    "check:src": "npm run lint",
     "lint": "eslint src",
-    "prepublish": "npm run clean && npm run check:src && npm run build"
+    "prepack": "npm run build"
   },
   "devDependencies": {
     "babel-cli": "^6.9.0",
