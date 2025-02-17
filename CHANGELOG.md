@@ -1,6 +1,12 @@
 WebSockHop Changelog
 ====================
 
+v. 2.2.1 (09-16-2017)
+
+  * _raiseErrorEvent clears socket fully including removing listeners and relevant private state, not just setting this.socket to null
+  * use exorcist to build source map file
+  * Use mkdirp from npm instead of 'mkdir -p' in npm build scripts. Should help with Windows support
+
 v. 2.2.0 (10-20-2016)
 
   * Unified logging (#18)
