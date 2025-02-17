@@ -1,6 +1,13 @@
 WebSockHop Changelog
 ====================
 
+v. 2.2.2 (02-17-2025)
+
+  * Clean up build scripts
+  * Release to npmjs using CI workflow
+  * Fix gitignore
+  * Fix echo example
+
 v. 2.2.1 (09-16-2017)
 
   * _raiseErrorEvent clears socket fully including removing listeners and relevant private state, not just setting this.socket to null
