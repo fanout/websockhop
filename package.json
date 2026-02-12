@@ -1,6 +1,6 @@
 {
   "name": "websockhop",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "Convenience library for WebSocket that provides automatic reconnect, periodic pinging, and request/response interactions",
   "main": "lib/index.js",
   "files": [

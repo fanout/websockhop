@@ -1,6 +1,8 @@
 WebSockHop Changelog
 ====================
 
+v. 2.2.3 (02-12-2026)
+
   * Release to npmjs using updated CI workflow and trusted publishing
 
 v. 2.2.2 (02-17-2025)
